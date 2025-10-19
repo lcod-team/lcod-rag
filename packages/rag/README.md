@@ -14,3 +14,4 @@ Components:
 - `lcod://rag/registry/diff_snapshots@0.1.0` — compare previous and current snapshots to detect additions, removals and changes.
 - `lcod://rag/registry/snapshot_read@0.1.0` — load an on-disk snapshot (if present) with warnings for missing/invalid files.
 - `lcod://rag/registry/snapshot_write@0.1.0` — persist the snapshot JSON only when the content changes.
+- `lcod://rag/registry/prepare_ingestion@0.1.0` — drive the snapshot read → collect → diff orchestration before embedding updates.

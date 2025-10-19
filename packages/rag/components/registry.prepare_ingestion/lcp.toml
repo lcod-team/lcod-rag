@@ -1,0 +1,4 @@
+id = "lcod://rag/registry/prepare_ingestion@0.1.0"
+name = "registry.prepare_ingestion"
+version = "0.1.0"
+kind = "component"

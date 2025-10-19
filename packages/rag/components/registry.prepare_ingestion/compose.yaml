@@ -1,0 +1,78 @@
+compose:
+  - call: lcod://rag/registry/snapshot_read@0.1.0
+    in:
+      path: $.snapshotPath
+      warningMessage: $.missingSnapshotWarning
+    out:
+      snapshot: previousSnapshot
+      exists: previousExists
+      warnings: readWarnings
+
+  - call: lcod://rag/registry/collect_components@0.1.0
+    in:
+      projectPath: $.projectPath
+      cataloguesPath: $.cataloguesPath
+      sourceId: $.sourceId
+      cacheDir: $.cacheDir
+      cwd: $.cwd
+      specRoot: $.specRoot
+      ragRoot: $.ragRoot
+    out:
+      components: components
+      warnings: collectWarnings
+
+  - call: lcod://rag/registry/snapshot_from_components@0.1.0
+    in:
+      components: $.components
+    out:
+      snapshot: currentSnapshot
+      entries: snapshotEntries
+
+  - call: lcod://rag/registry/diff_snapshots@0.1.0
+    in:
+      previous: $.previousSnapshot
+      current: $.currentSnapshot
+    out:
+      added: added
+      removed: removed
+      updated: updated
+      unchanged: unchanged
+
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.readWarnings
+    out:
+      accumulatedWarnings: resolved
+
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.collectWarnings
+    out:
+      collectWarningsList: resolved
+
+  - call: lcod://tooling/array/append@0.1.0
+    in:
+      items: $.accumulatedWarnings
+      values: $.collectWarningsList
+    out:
+      warnings: items
+
+  - call: lcod://impl/set@1
+    in:
+      components: $.components
+      snapshot: $.currentSnapshot
+      snapshotEntries: $.snapshotEntries
+      diff:
+        added: $.added
+        removed: $.removed
+        updated: $.updated
+        unchanged: $.unchanged
+      previousExists: $.previousExists
+      warnings: $.warnings
+    out:
+      components: components
+      snapshot: snapshot
+      snapshotEntries: snapshotEntries
+      diff: diff
+      previousExists: previousExists
+      warnings: warnings
