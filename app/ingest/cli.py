@@ -18,9 +18,9 @@ logging.basicConfig(level=logging.INFO)
 
 @app.command()
 def run(
-    config: Path = typer.Option(Path("config/sources.yaml"), exists=True, readable=True),
-    collection: Optional[str] = typer.Option(None, help="Override collection name"),
-    recreate: bool = typer.Option(False, help="Drop and recreate the collection"),
+    config: Path = typer.Option(Path("config/sources.yaml"), exists=True, readable=True, show_default=True),
+    collection: Optional[str] = typer.Option(None, "--collection", "-c", help="Override collection name"),
+    recreate: bool = typer.Option(False, "--recreate", help="Drop and recreate the collection", is_flag=True),
 ) -> None:
     """Run a full ingestion based on the YAML configuration file."""
     load_environment()

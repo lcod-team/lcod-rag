@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   qdrant:
-    image: qdrant/qdrant:1.9.1
+    image: qdrant/qdrant:latest
     restart: unless-stopped
     volumes:
       - ./data/qdrant:/qdrant/storage
