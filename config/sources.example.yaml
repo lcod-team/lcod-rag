@@ -1,0 +1,36 @@
+# Paths to documentation sources that should be ingested.
+# Copy this file to config/sources.yaml and edit the paths to match your environment.
+# Each entry can point to a directory or to a single markdown file.
+
+repositories:
+  - name: lcod-spec
+    path: ../lcod-spec
+    include:
+      - docs/**/*.md
+      - OVERVIEW.md
+      - ROADMAP.md
+  - name: lcod-resolver
+    path: ../lcod-resolver
+    include:
+      - README.md
+      - docs/**/*.md
+      - packages/resolver/**/*.md
+  - name: lcod-components
+    path: ../lcod-components
+    include:
+      - README.md
+      - docs/**/*.md
+  - name: lcod-kernel-js
+    path: ../lcod-kernel-js
+    include:
+      - README.md
+      - docs/**/*.md
+  - name: lcod-kernel-rs
+    path: ../lcod-kernel-rs
+    include:
+      - README.md
+      - docs/**/*.md
+
+notes:
+  - Customize `path` entries when deploying on `nucone.local` (typically `/home/nicolas/git/<repo>`).
+  - Glob patterns follow the `pathspec` syntax used by `pathlib.Path.glob`.

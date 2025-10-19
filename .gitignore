@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+*.log
+
+# Virtual environments
+.env
+.venv
+venv/
+ENV/
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# Data / caches
+cache/
+.tmp/
+logs/
+
+# Docker artefacts
+data/
+.env.local

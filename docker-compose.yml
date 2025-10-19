@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  qdrant:
+    image: qdrant/qdrant:1.9.1
+    restart: unless-stopped
+    volumes:
+      - ./data/qdrant:/qdrant/storage
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+
+  rag-api:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - config/.env
+    environment:
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - QDRANT_URL=${QDRANT_URL:-http://qdrant:6333}
+      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-lcod_docs}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-nomic-embed-text}
+      - GENERATIVE_MODEL=${GENERATIVE_MODEL:-llama3.1}
+      - TOP_K=${TOP_K:-5}
+      - API_HOST=0.0.0.0
+      - API_PORT=8088
+    ports:
+      - "8088:8088"
+    depends_on:
+      - qdrant
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  default:
+    name: lcod-rag
