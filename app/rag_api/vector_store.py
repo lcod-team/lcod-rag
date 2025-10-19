@@ -56,7 +56,7 @@ def upsert_documents(documents: Iterable[tuple[str, list[float], CollectionMetad
 
     client.upsert(
         collection_name=settings.qdrant_collection,
-        points=qmodels.Batch(points=ids, vectors=vectors, payloads=payloads),
+        points=qmodels.Batch(ids=ids, vectors=vectors, payloads=payloads),
     )
 
 
