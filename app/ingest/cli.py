@@ -1,33 +1,48 @@
 from __future__ import annotations
 
+import argparse
 import logging
 import os
 from pathlib import Path
-from typing import Optional
 
-import typer
-
-from app.rag_api.ingest import ingest_documents, load_environment
 from app.rag_api.config import get_settings
+from app.rag_api.ingest import ingest_documents, load_environment
 from .sources import load_sources
 
-app = typer.Typer(help="LCOD RAG ingestion CLI")
 logger = logging.getLogger("rag-ingest")
 logging.basicConfig(level=logging.INFO)
 
 
-@app.command()
-def run(
-    config: Path = typer.Option(Path("config/sources.yaml"), exists=True, readable=True, show_default=True),
-    collection: Optional[str] = typer.Option(None, "--collection", help="Override collection name"),
-    recreate: bool = typer.Option(False, "--recreate", help="Drop and recreate the collection"),
-) -> None:
-    """Run a full ingestion based on the YAML configuration file."""
+def main() -> None:
+    parser = argparse.ArgumentParser(description="LCOD RAG ingestion CLI")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=Path("config/sources.yaml"),
+        help="Path to the ingestion configuration file",
+    )
+    parser.add_argument(
+        "--collection",
+        type=str,
+        default=None,
+        help="Override the Qdrant collection name",
+    )
+    parser.add_argument(
+        "--recreate",
+        action="store_true",
+        help="Drop the collection before inserting new documents",
+    )
+    args = parser.parse_args()
+
     load_environment()
-    if collection:
-        os.environ["QDRANT_COLLECTION"] = collection
+    if not args.config.exists():
+        parser.error(f"Config file {args.config} does not exist")
+
+    if args.collection:
+        os.environ["QDRANT_COLLECTION"] = args.collection
         get_settings.cache_clear()  # type: ignore[attr-defined]
-    sources = load_sources(config)
+
+    sources = load_sources(args.config)
     documents: list[tuple[str, str, str]] = []
     for source in sources:
         for repo, path in source.iter_files():
@@ -35,22 +50,20 @@ def run(
             documents.append((repo, str(path), text))
 
     if not documents:
-        typer.echo("No documents found – check your config paths")
-        raise typer.Exit(code=1)
+        parser.error("No documents found – check your config paths")
 
-    target_collection = collection or get_settings().qdrant_collection
-
-    if recreate:
+    if args.recreate:
         from qdrant_client import QdrantClient
 
-        client = QdrantClient(url=get_settings().qdrant_url, api_key=get_settings().qdrant_api_key or None)
+        settings = get_settings()
+        client = QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key or None)
         try:
-            client.delete_collection(target_collection)
+            client.delete_collection(settings.qdrant_collection)
         except Exception:
             pass
+
     ingest_documents(documents)
-    typer.echo(f"Ingested {len(documents)} documents into {target_collection}")
 
 
 if __name__ == "__main__":
-    app()
+    main()
