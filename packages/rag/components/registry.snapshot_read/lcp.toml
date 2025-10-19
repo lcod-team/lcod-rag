@@ -1,0 +1,4 @@
+id = "lcod://rag/registry/snapshot_read@0.1.0"
+name = "registry.snapshot_read"
+version = "0.1.0"
+kind = "component"

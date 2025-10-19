@@ -1,0 +1,32 @@
+compose:
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }) => {
+          const warnings = [];
+          const items = [];
+          const text = typeof state.text === 'string' ? state.text : '';
+          if (text.trim().length === 0) {
+            return { items, warnings };
+          }
+          for (const rawLine of text.split('\n')) {
+            const line = rawLine.trim();
+            if (!line.length) continue;
+            try {
+              const parsed = JSON.parse(line);
+              if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                items.push(parsed);
+              } else {
+                warnings.push(`Ignoring non-object JSONL entry: ${line.slice(0, 80)}`);
+              }
+            } catch (err) {
+              warnings.push(`Failed to parse JSONL line: ${err.message}`);
+            }
+          }
+          return { items, warnings };
+        }
+      input:
+        text: $.text
+    out:
+      items: items
+      warnings: warnings

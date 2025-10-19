@@ -1,0 +1,381 @@
+compose:
+  # Built-in default catalogue (lcod-registry)
+  - call: lcod://impl/set@1
+    in:
+      defaultSourcesSpec:
+        schema: 'lcod-resolver/sources@1'
+        sources:
+          - id: 'lcod-registry'
+            priority: 50
+            entrypoint:
+              type: 'https'
+              url: 'https://raw.githubusercontent.com/lcod-team/lcod-registry/main/catalogues.json'
+    out:
+      defaultSourcesSpec: defaultSourcesSpec
+
+  # Prepare paths and defaults
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }) => {
+          const pick = (value, fallback, defaultValue) => {
+            if (typeof value === 'string' && value.length > 0) return value;
+            if (typeof fallback === 'string' && fallback.length > 0) return fallback;
+            return defaultValue;
+          };
+          return {
+            projectPath: pick(state.projectPath, state.cwd, '.'),
+            cataloguesPath: pick(state.cataloguesPath, null, 'catalogues.json'),
+            sourceId: pick(state.sourceId, null, 'catalogues'),
+            specRoot: pick(state.specRoot, null, '../lcod-spec'),
+            ragRoot: pick(state.ragRoot, null, '.')
+          };
+        }
+      input:
+        projectPath: $.projectPath
+        cataloguesPath: $.cataloguesPath
+        sourceId: $.sourceId
+        specRoot: $.specRoot
+        ragRoot: $.ragRoot
+        cwd: $.cwd
+    out:
+      projectPath: projectPath
+      cataloguesPath: cataloguesPath
+      sourceId: sourceId
+      specRoot: specRoot
+      ragRoot: ragRoot
+
+  # Register spec helpers (tooling/value, registry_sources, etc.)
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }, { imports }) => {
+          const join = async (segment) => {
+            const result = await imports.pathJoin({ base: state.specRoot, segment });
+            return result?.path || segment;
+          };
+          const definitions = [
+            { id: 'lcod://tooling/value/default_object@0.1.0', path: 'tooling/value/default_object/compose.yaml' },
+            { id: 'lcod://tooling/value/default_array@0.1.0', path: 'tooling/value/default_array/compose.yaml' },
+            { id: 'lcod://tooling/value/is_object@0.1.0', path: 'tooling/value/is_object/compose.yaml' },
+            { id: 'lcod://tooling/value/is_array@0.1.0', path: 'tooling/value/is_array/compose.yaml' },
+            { id: 'lcod://tooling/value/is_string_nonempty@0.1.0', path: 'tooling/value/is_string_nonempty/compose.yaml' },
+            { id: 'lcod://tooling/array/append@0.1.0', path: 'tooling/array/append/compose.yaml' },
+            { id: 'lcod://tooling/array/compact@0.1.0', path: 'tooling/array/compact/compose.yaml' },
+            { id: 'lcod://tooling/array/concat@0.1.0', path: 'tooling/array/concat/compose.yaml' },
+            { id: 'lcod://tooling/registry_sources/prepare_env@0.1.0', path: 'tooling/registry_sources/prepare_env/compose.yaml' },
+            { id: 'lcod://tooling/registry_sources/load_config@0.1.0', path: 'tooling/registry_sources/load_config/compose.yaml' },
+            { id: 'lcod://tooling/registry_sources/collect_entries@0.1.0', path: 'tooling/registry_sources/collect_entries/compose.yaml' },
+            { id: 'lcod://tooling/registry_sources/collect_queue@0.1.0', path: 'tooling/registry_sources/collect_queue/compose.yaml' },
+            { id: 'lcod://tooling/registry_sources/merge_inline_entries@0.1.0', path: 'tooling/registry_sources/merge_inline_entries/compose.yaml' },
+            { id: 'lcod://tooling/registry_sources/normalize_pointer@0.1.0', path: 'tooling/registry_sources/normalize_pointer/compose.yaml' },
+            { id: 'lcod://tooling/registry_sources/partition_normalized@0.1.0', path: 'tooling/registry_sources/partition_normalized/compose.yaml' },
+            { id: 'lcod://tooling/registry_sources/process_catalogue@0.1.0', path: 'tooling/registry_sources/process_catalogue/compose.yaml' },
+            { id: 'lcod://tooling/registry_sources/process_pointer@0.1.0', path: 'tooling/registry_sources/process_pointer/compose.yaml' },
+            { id: 'lcod://tooling/registry_sources/resolve@0.1.0', path: 'tooling/registry_sources/resolve/compose.yaml' }
+          ];
+          const components = await Promise.all(definitions.map(async (def) => ({
+            id: def.id,
+            composePath: await join(def.path)
+          })));
+          return { specComponents: components };
+        }
+      input:
+        specRoot: $.specRoot
+      imports:
+        pathJoin: lcod://axiom/path/join@1
+    out:
+      specComponents: specComponents
+
+  - call: lcod://tooling/resolver/register@1
+    in:
+      components: $.specComponents
+    out:
+      registeredCount: registered
+      registerWarnings: warnings
+
+  # Register rag helper components
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }, { imports }) => {
+          const join = async (segment) => {
+            const result = await imports.pathJoin({ base: state.ragRoot, segment });
+            return result?.path || segment;
+          };
+          const components = await Promise.all([
+            { id: 'lcod://rag/jsonl/parse_objects@0.1.0', segment: 'packages/rag/components/jsonl.parse_objects/compose.yaml' },
+            { id: 'lcod://rag/array/compact@0.1.0', segment: 'packages/rag/components/array.compact/compose.yaml' },
+            { id: 'lcod://rag/array/flatten@0.1.0', segment: 'packages/rag/components/array.flatten/compose.yaml' },
+            { id: 'lcod://rag/array/pluck@0.1.0', segment: 'packages/rag/components/array.pluck/compose.yaml' },
+            { id: 'lcod://rag/registry/normalize_component@0.1.0', segment: 'packages/rag/components/registry.normalize_component/compose.yaml' }
+          ].map(async (entry) => ({
+            id: entry.id,
+            composePath: await join(entry.segment)
+          })));
+          return { ragComponents: components };
+        }
+      input:
+        ragRoot: $.ragRoot
+      imports:
+        pathJoin: lcod://axiom/path/join@1
+    out:
+      ragComponents: ragComponents
+
+  - call: lcod://tooling/resolver/register@1
+    in:
+      components: $.ragComponents
+    out:
+      ragRegistered: registered
+      ragRegisterWarnings: warnings
+
+  # Build inline sources config for the catalogue pointer
+  - call: lcod://impl/set@1
+    in:
+      sourcesConfig:
+        schema: 'lcod-resolver/sources@1'
+        sources:
+          - id: $.sourceId
+            entrypoint:
+              type: 'file'
+              path: $.cataloguesPath
+    out:
+      sourcesConfig: sourcesConfig
+
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }) => ({
+          json: JSON.stringify(state.value ?? {})
+        })
+      input:
+        value: $.sourcesConfig
+    out:
+      sourcesConfigJson: json
+
+  # Resolve registry sources using the spec helpers
+  - call: lcod://tooling/registry_sources/resolve@0.1.0
+    in:
+      projectPath: $.projectPath
+      cacheDir: $.cacheDir
+      cwd: $.cwd
+      sourcesText: $.sourcesConfigJson
+    out:
+      registrySources: registrySources
+      resolveWarnings: warnings
+
+  # Collect base warnings
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.registerWarnings
+    out:
+      baseWarnings: resolved
+
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.ragRegisterWarnings
+    out:
+      ragWarningsList: resolved
+
+  - call: lcod://tooling/array/append@0.1.0
+    in:
+      items: $.baseWarnings
+      values: $.ragWarningsList
+    out:
+      baseWarnings: items
+
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.resolveWarnings
+    out:
+      resolveWarningsList: resolved
+
+  - call: lcod://tooling/array/append@0.1.0
+    in:
+      items: $.baseWarnings
+      values: $.resolveWarningsList
+    out:
+      warnings: items
+
+  # Ensure registry sources array
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.registrySources
+    out:
+      registrySourcesList: resolved
+
+  # Process each registry source
+  - call: lcod://flow/foreach@1
+    in:
+      list: $.registrySourcesList
+    children:
+      body:
+        - call: lcod://tooling/value/default_object@0.1.0
+          in:
+            value: $slot.item
+          out:
+            sourceObject: resolved
+
+        - call: lcod://tooling/value/default_array@0.1.0
+          in:
+            value: $.sourceObject.lines
+          out:
+            inlineLines: resolved
+
+        - call: lcod://rag/jsonl/parse_objects@0.1.0
+          in:
+            text: $.sourceObject.jsonl
+          out:
+            parsedItems: items
+            parseWarnings: warnings
+
+        - call: lcod://tooling/value/default_array@0.1.0
+          in:
+            value: $.parsedItems
+          out:
+            parsedList: resolved
+
+        - call: lcod://tooling/array/concat@0.1.0
+          in:
+            left: $.parsedList
+            right: $.inlineLines
+          out:
+            combinedRecords: items
+
+        - call: lcod://tooling/value/default_array@0.1.0
+          in:
+            value: $.combinedRecords
+          out:
+            recordsList: resolved
+
+        - call: lcod://flow/foreach@1
+          in:
+            list: $.recordsList
+          children:
+            body:
+              - call: lcod://tooling/value/default_object@0.1.0
+                in:
+                  value: $slot.item
+                out:
+                  recordObject: resolved
+              - call: lcod://rag/registry/normalize_component@0.1.0
+                in:
+                  record: $.recordObject
+                  source: $.sourceObject
+                out:
+                  normalizedComponent: component
+                  normalizedWarnings: warnings
+              - call: lcod://impl/set@1
+                in:
+                  result:
+                    component: $.normalizedComponent
+                    warnings: $.normalizedWarnings
+                out:
+                  result: result
+          collectPath: $.result
+          out:
+            normalizationResults: results
+
+        - call: lcod://rag/array/pluck@0.1.0
+          in:
+            items: $.normalizationResults
+            field: 'component'
+          out:
+            candidateComponents: values
+
+        - call: lcod://rag/array/compact@0.1.0
+          in:
+            items: $.candidateComponents
+          out:
+            componentsList: values
+
+        - call: lcod://rag/array/pluck@0.1.0
+          in:
+            items: $.normalizationResults
+            field: 'warnings'
+          out:
+            normalizationWarningsNested: values
+
+        - call: lcod://rag/array/flatten@0.1.0
+          in:
+            items: $.normalizationWarningsNested
+          out:
+            normalizationWarnings: values
+
+        - call: lcod://tooling/value/default_array@0.1.0
+          in:
+            value: $.parseWarnings
+          out:
+            parseWarningsList: resolved
+
+        - call: lcod://tooling/value/default_array@0.1.0
+          in:
+            value: $.normalizationWarnings
+          out:
+            normalizationWarningsList: resolved
+
+        - call: lcod://tooling/array/append@0.1.0
+          in:
+            items: $.parseWarningsList
+            values: $.normalizationWarningsList
+          out:
+            sourceWarnings: items
+
+        - call: lcod://impl/set@1
+          in:
+            entry:
+              components: $.componentsList
+              warnings: $.sourceWarnings
+          out:
+            entry: entry
+    collectPath: $.entry
+    out:
+      perSourceResults: results
+
+  # Merge per-source components and warnings
+  - call: lcod://rag/array/pluck@0.1.0
+    in:
+      items: $.perSourceResults
+      field: 'components'
+    out:
+      componentsNested: values
+
+  - call: lcod://rag/array/flatten@0.1.0
+    in:
+      items: $.componentsNested
+    out:
+      componentsFlat: values
+
+  - call: lcod://rag/array/pluck@0.1.0
+    in:
+      items: $.perSourceResults
+      field: 'warnings'
+    out:
+      warningsNested: values
+
+  - call: lcod://rag/array/flatten@0.1.0
+    in:
+      items: $.warningsNested
+    out:
+      perSourceWarnings: values
+
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.perSourceWarnings
+    out:
+      perSourceWarningsList: resolved
+
+  - call: lcod://tooling/array/append@0.1.0
+    in:
+      items: $.warnings
+      values: $.perSourceWarningsList
+    out:
+      allWarnings: items
+
+  - call: lcod://impl/set@1
+    in:
+      components: $.componentsFlat
+      warnings: $.allWarnings
+    out:
+      components: components
+      warnings: warnings

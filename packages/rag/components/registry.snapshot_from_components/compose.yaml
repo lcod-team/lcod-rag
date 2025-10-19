@@ -1,0 +1,42 @@
+compose:
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.components
+    out:
+      componentsList: resolved
+
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }) => {
+          const items = Array.isArray(state.components) ? state.components : [];
+          const snapshot = {};
+          const entries = [];
+          for (const component of items) {
+            if (!component || typeof component !== 'object') continue;
+            const id = typeof component.componentId === 'string' ? component.componentId : null;
+            const version = typeof component.version === 'string' ? component.version : null;
+            if (!id || !version) continue;
+            const key = `${id}@${version}`;
+            const entry = {
+              key,
+              componentId: id,
+              version,
+              registryId: typeof component.registryId === 'string' ? component.registryId : null,
+              priority: Number.isFinite(component.priority) ? Math.trunc(component.priority) : null,
+              sha256: typeof component.sha256 === 'string' ? component.sha256 : null,
+              manifest: typeof component.manifest === 'string' ? component.manifest : null,
+              manifestPath: typeof component.manifestPath === 'string' ? component.manifestPath : null,
+              manifestUrl: typeof component.manifestUrl === 'string' ? component.manifestUrl : null
+            };
+            entries.push(entry);
+            snapshot[key] = entry;
+          }
+          entries.sort((a, b) => a.key.localeCompare(b.key));
+          return { snapshot, entries };
+        }
+      input:
+        components: $.componentsList
+    out:
+      snapshot: snapshot
+      entries: entries

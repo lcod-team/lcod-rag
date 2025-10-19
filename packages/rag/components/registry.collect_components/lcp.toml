@@ -1,0 +1,4 @@
+id = "lcod://rag/registry/collect_components@0.1.0"
+name = "registry.collect_components"
+version = "0.1.0"
+kind = "component"

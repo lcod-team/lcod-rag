@@ -1,0 +1,26 @@
+compose:
+  - call: lcod://tooling/value/default_object@0.1.0
+    in:
+      value: $.snapshot
+    out:
+      snapshotObject: resolved
+
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }) => {
+          const json = JSON.stringify(state.snapshotObject || {}, null, 2) + '
+';
+          return { json };
+        }
+      input:
+        snapshotObject: $.snapshotObject
+    out:
+      json: json
+
+  - call: lcod://tooling/fs/write_if_changed@0.1.0
+    in:
+      path: $.path
+      content: $.json
+    out:
+      changed: changed

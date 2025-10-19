@@ -1,0 +1,4 @@
+id = "lcod://rag/registry/diff_snapshots@0.1.0"
+name = "registry.diff_snapshots"
+version = "0.1.0"
+kind = "component"

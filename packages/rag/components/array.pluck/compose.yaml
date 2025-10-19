@@ -1,0 +1,16 @@
+compose:
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }) => {
+          const list = Array.isArray(state.items) ? state.items : [];
+          const field = typeof state.field === 'string' && state.field.length > 0 ? state.field : null;
+          if (!field) return { values: [] };
+          const values = list.map((item) => (item && typeof item === 'object' ? item[field] : undefined));
+          return { values };
+        }
+      input:
+        items: $.items
+        field: $.field
+    out:
+      values: values

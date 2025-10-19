@@ -1,0 +1,4 @@
+id = "lcod://rag/array/flatten@0.1.0"
+name = "array.flatten"
+version = "0.1.0"
+kind = "component"

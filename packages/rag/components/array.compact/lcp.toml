@@ -1,0 +1,4 @@
+id = "lcod://rag/array/compact@0.1.0"
+name = "array.compact"
+version = "0.1.0"
+kind = "component"

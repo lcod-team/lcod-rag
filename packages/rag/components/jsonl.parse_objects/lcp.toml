@@ -1,0 +1,4 @@
+id = "lcod://rag/jsonl/parse_objects@0.1.0"
+name = "jsonl.parse_objects"
+version = "0.1.0"
+kind = "component"

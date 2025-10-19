@@ -1,0 +1,57 @@
+compose:
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }) => {
+          const warnings = [];
+          const record = state.record && typeof state.record === 'object' && !Array.isArray(state.record)
+            ? state.record
+            : {};
+          const source = state.source && typeof state.source === 'object' && !Array.isArray(state.source)
+            ? state.source
+            : {};
+
+          const asString = (value) => (typeof value === 'string' && value.length > 0 ? value : null);
+          const asObject = (value) => (value && typeof value === 'object' && !Array.isArray(value) ? value : null);
+
+          const componentId = asString(record.id);
+          const version = asString(record.version);
+
+          if (!componentId || !version) {
+            if (!componentId || !version) {
+              warnings.push('registry.normalize_component: missing id or version on component entry');
+            }
+            return { component: null, warnings };
+          }
+
+          const manifest = asString(record.manifest);
+          const registryId = asString(record.registryId) || asString(source.registryId) || null;
+
+          const pickNumber = (value) => (Number.isFinite(value) ? Math.trunc(value) : null);
+          const priority = pickNumber(record.priority) ?? pickNumber(source.priority);
+
+          const sha256 = asString(record.sha256);
+          const artifact = asObject(record.artifact);
+          const defaults = asObject(source.defaults);
+          const sourceMetadata = asObject(source.metadata);
+
+          const component = {
+            componentId,
+            version,
+            manifest,
+            registryId,
+            priority,
+            sha256,
+            artifact: artifact || null,
+            defaults: defaults || null,
+            sourceMetadata: sourceMetadata || null
+          };
+
+          return { component, warnings };
+        }
+      input:
+        record: $.record
+        source: $.source
+    out:
+      component: component
+      warnings: warnings

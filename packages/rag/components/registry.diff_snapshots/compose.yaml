@@ -1,0 +1,73 @@
+compose:
+  - call: lcod://tooling/value/default_object@0.1.0
+    in:
+      value: $.previous
+    out:
+      previousSnapshot: resolved
+
+  - call: lcod://tooling/value/default_object@0.1.0
+    in:
+      value: $.current
+    out:
+      currentSnapshot: resolved
+
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }) => {
+          const prev = state.previousSnapshot && typeof state.previousSnapshot === 'object' ? state.previousSnapshot : {};
+          const curr = state.currentSnapshot && typeof state.currentSnapshot === 'object' ? state.currentSnapshot : {};
+          const added = [];
+          const removed = [];
+          const updated = [];
+          const unchanged = [];
+
+          const toComparable = (entry) => {
+            if (!entry || typeof entry !== 'object') return null;
+            return {
+              sha256: typeof entry.sha256 === 'string' ? entry.sha256 : null,
+              manifest: typeof entry.manifest === 'string' ? entry.manifest : null,
+              manifestPath: typeof entry.manifestPath === 'string' ? entry.manifestPath : null,
+              manifestUrl: typeof entry.manifestUrl === 'string' ? entry.manifestUrl : null
+            };
+          };
+
+          const prevKeys = new Set(Object.keys(prev));
+          const currKeys = new Set(Object.keys(curr));
+
+          for (const key of currKeys) {
+            const currentEntry = curr[key];
+            const previousEntry = prev[key];
+            if (!previousEntry) {
+              added.push(currentEntry);
+              continue;
+            }
+            const prevComparable = toComparable(previousEntry);
+            const currComparable = toComparable(currentEntry);
+            if (JSON.stringify(prevComparable) !== JSON.stringify(currComparable)) {
+              updated.push({ previous: previousEntry, current: currentEntry });
+            } else {
+              unchanged.push(currentEntry);
+            }
+            prevKeys.delete(key);
+          }
+
+          for (const key of prevKeys) {
+            if (prev[key]) removed.push(prev[key]);
+          }
+
+          return {
+            added,
+            removed,
+            updated,
+            unchanged
+          };
+        }
+      input:
+        previousSnapshot: $.previousSnapshot
+        currentSnapshot: $.currentSnapshot
+    out:
+      added: added
+      removed: removed
+      updated: updated
+      unchanged: unchanged

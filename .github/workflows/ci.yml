@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test-registry-ingestion:
+    runs-on: ubuntu-latest
+    env:
+      LCOD_RUN_VERSION: v0.1.5
+    steps:
+      - name: Checkout lcod-rag
+        uses: actions/checkout@v4
+
+      - name: Checkout lcod-spec
+        uses: actions/checkout@v4
+        with:
+          repository: lcod-team/lcod-spec
+          path: lcod-spec
+
+      - name: Checkout lcod-registry
+        uses: actions/checkout@v4
+        with:
+          repository: lcod-team/lcod-registry
+          path: lcod-registry
+
+      - name: Download lcod-run
+        run: |
+          curl -sSL "https://github.com/lcod-team/lcod-kernel-rs/releases/download/${LCOD_RUN_VERSION}/lcod-run-linux-x86_64.tar.gz" -o lcod-run.tar.gz
+          tar -xzf lcod-run.tar.gz
+          if [ -d lcod-run-linux-x86_64 ]; then
+            mv lcod-run-linux-x86_64/lcod-run .
+          fi
+          chmod +x lcod-run
+
+      - name: Prepare state file
+        run: |
+          python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+workspace = Path(os.environ["GITHUB_WORKSPACE"])
+state = {
+    "projectPath": ".",
+    "cataloguesPath": str(workspace / "lcod-registry" / "catalogues.json"),
+    "specRoot": str(workspace / "lcod-spec"),
+    "ragRoot": str(workspace),
+    "snapshotPath": str(workspace / ".ci" / "previous_snapshot.json")
+}
+output_path = workspace / ".ci"
+output_path.mkdir(exist_ok=True)
+state_path = output_path / "state.json"
+state_path.write_text(json.dumps(state, indent=2))
+PY
+
+      - name: Run registry prepare_ingestion compose
+        run: |
+          ./lcod-run --core --resolver \
+            --project packages/rag \
+            --compose packages/rag/components/registry.prepare_ingestion/compose.yaml \
+            --state .ci/state.json

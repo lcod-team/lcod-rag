@@ -1,0 +1,107 @@
+compose:
+  - call: lcod://impl/set@1
+    in:
+      warningsBase: []
+    out:
+      warningsBase: warningsBase
+
+  - call: lcod://tooling/fs/read_optional@0.1.0
+    in:
+      path: $.path
+      encoding: 'utf-8'
+      fallback: '{}'
+      warningMessage: $.warningMessage
+    out:
+      text: text
+      exists: exists
+      warning: warning
+
+  - call: lcod://tooling/value/is_string_nonempty@0.1.0
+    in:
+      value: $.warning
+    out:
+      warningPresent: ok
+
+  - call: lcod://flow/if@1
+    in:
+      cond: $.warningPresent
+    children:
+      then:
+        - call: lcod://tooling/array/append@0.1.0
+          in:
+            items: $.warningsBase
+            values:
+              - $.warning
+          out:
+            warningsBase: items
+    out:
+      warningsBase: warningsBase
+
+  - call: lcod://tooling/json/decode_object@0.1.0
+    in:
+      text: $.text
+    out:
+      object: snapshotCandidate
+      error: decodeError
+
+  - call: lcod://tooling/value/default_object@0.1.0
+    in:
+      value: $.snapshotCandidate
+    out:
+      snapshotObject: resolved
+
+  - call: lcod://tooling/value/is_string_nonempty@0.1.0
+    in:
+      value: $.decodeError
+    out:
+      decodeErrorPresent: ok
+
+  - call: lcod://flow/if@1
+    in:
+      cond: $.decodeErrorPresent
+    children:
+      then:
+        - call: lcod://tooling/array/append@0.1.0
+          in:
+            items: $.warningsBase
+            values:
+              - $.decodeError
+          out:
+            warningsBase: items
+    out:
+      warningsBase: warningsBase
+
+  - call: lcod://tooling/value/is_object@0.1.0
+    in:
+      value: $.snapshotObject
+    out:
+      snapshotIsObject: ok
+
+  - call: lcod://flow/if@1
+    in:
+      cond: $.snapshotIsObject
+    children:
+      then:
+        - call: lcod://impl/set@1
+          in:
+            normalized: $.snapshotObject
+          out:
+            normalized: normalized
+      else:
+        - call: lcod://impl/set@1
+          in:
+            normalized: {}
+          out:
+            normalized: normalized
+    out:
+      normalized: normalized
+
+  - call: lcod://impl/set@1
+    in:
+      snapshot: $.normalized
+      warnings: $.warningsBase
+      exists: $.exists
+    out:
+      snapshot: snapshot
+      warnings: warnings
+      exists: exists

@@ -1,0 +1,4 @@
+id = "lcod://rag/registry/normalize_component@0.1.0"
+name = "registry.normalize_component"
+version = "0.1.0"
+kind = "component"
