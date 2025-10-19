@@ -69,11 +69,14 @@ Restart the compose stack afterwards.
 
 ```bash
 cd ~/git/lcod-rag
-python -m app.ingest.cli run --config config/sources.yaml --collection lcod_docs --recreate
+source .venv/bin/activate  # if you created a virtualenv
+OLLAMA_BASE_URL=http://127.0.0.1:11434 \
+QDRANT_URL=http://127.0.0.1:6333 \
+python -m app.ingest.cli --config config/sources.yaml --collection lcod_docs --recreate
 ```
 
 - `--recreate` drops and re-creates the Qdrant collection (useful when schema changes).
-- By default the CLI reads `config/.env` to pick Ollama/Qdrant settings (using `python-dotenv`).
+- The example above overrides the Ollama/Qdrant URLs for host execution. When running inside Docker, keep the defaults (`http://host.docker.internal:11434` and `http://qdrant:6333`).
 
 Schedule the ingestion via cron or a systemd timer if you need regular updates.
 
@@ -128,4 +131,3 @@ Create a new **Dataset** in Dify and configure a custom “External Knowledge Ba
 - Qdrant data lives in `./data/qdrant`. Include it in the nightly backups of `nucone.local`.
 - Monitor container health with `docker ps` or integrate with the existing Prometheus stack.
 - When upgrading dependencies, rebuild the API image: `docker compose build rag-api && docker compose up -d`.
-
