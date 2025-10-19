@@ -1,4 +1,40 @@
 compose:
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }, { imports }) => {
+          const result = await imports.pathJoin({
+            base: state.ragRoot,
+            segment: 'packages/rag/components/registry.register_helpers/compose.yaml'
+          });
+          const composePath = result?.path || result;
+          return {
+            helperRegistration: composePath
+              ? [{ id: 'lcod://rag/registry/register_helpers@0.1.0', composePath }]
+              : []
+          };
+        }
+      input:
+        ragRoot: $.ragRoot
+      imports:
+        pathJoin: lcod://axiom/path/join@1
+    out:
+      helperRegistration: helperRegistration
+
+  - call: lcod://tooling/resolver/register@1
+    in:
+      components: $.helperRegistration
+    out:
+      helperRegistered: bootstrapRegistered
+      helperRegisterWarnings: bootstrapWarnings
+
+  - call: lcod://rag/registry/register_helpers@0.1.0
+    in:
+      ragRoot: $.ragRoot
+    out:
+      helperRegistered: registered
+      helperWarnings: helperWarnings
+
   - call: lcod://rag/registry/snapshot_read@0.1.0
     in:
       path: $.snapshotPath
@@ -50,10 +86,36 @@ compose:
     out:
       collectWarningsList: resolved
 
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.bootstrapWarnings
+    out:
+      bootstrapWarningsList: resolved
+
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.helperWarnings
+    out:
+      helperWarningsList: resolved
+
   - call: lcod://tooling/array/append@0.1.0
     in:
       items: $.accumulatedWarnings
       values: $.collectWarningsList
+    out:
+      warnings: items
+
+  - call: lcod://tooling/array/append@0.1.0
+    in:
+      items: $.warnings
+      values: $.bootstrapWarningsList
+    out:
+      warnings: items
+
+  - call: lcod://tooling/array/append@0.1.0
+    in:
+      items: $.warnings
+      values: $.helperWarningsList
     out:
       warnings: items
 

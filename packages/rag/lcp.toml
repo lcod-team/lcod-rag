@@ -31,6 +31,10 @@ id = "lcod://rag/registry/collect_components@0.1.0"
 path = "components/registry.collect_components"
 
 [[workspace.components]]
+id = "lcod://rag/registry/register_helpers@0.1.0"
+path = "components/registry.register_helpers"
+
+[[workspace.components]]
 id = "lcod://rag/registry/snapshot_from_components@0.1.0"
 path = "components/registry.snapshot_from_components"
 

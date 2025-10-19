@@ -1,0 +1,40 @@
+compose:
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }, { imports }) => {
+          const join = async (segment) => {
+            const result = await imports.pathJoin({ base: state.ragRoot, segment });
+            return result?.path || segment;
+          };
+          const registrations = [
+            { id: 'lcod://rag/jsonl/parse_objects@0.1.0', segment: 'packages/rag/components/jsonl.parse_objects/compose.yaml' },
+            { id: 'lcod://rag/array/compact@0.1.0', segment: 'packages/rag/components/array.compact/compose.yaml' },
+            { id: 'lcod://rag/array/flatten@0.1.0', segment: 'packages/rag/components/array.flatten/compose.yaml' },
+            { id: 'lcod://rag/array/pluck@0.1.0', segment: 'packages/rag/components/array.pluck/compose.yaml' },
+            { id: 'lcod://rag/registry/normalize_component@0.1.0', segment: 'packages/rag/components/registry.normalize_component/compose.yaml' },
+            { id: 'lcod://rag/registry/collect_components@0.1.0', segment: 'packages/rag/components/registry.collect_components/compose.yaml' },
+            { id: 'lcod://rag/registry/snapshot_from_components@0.1.0', segment: 'packages/rag/components/registry.snapshot_from_components/compose.yaml' },
+            { id: 'lcod://rag/registry/diff_snapshots@0.1.0', segment: 'packages/rag/components/registry.diff_snapshots/compose.yaml' },
+            { id: 'lcod://rag/registry/snapshot_read@0.1.0', segment: 'packages/rag/components/registry.snapshot_read/compose.yaml' },
+            { id: 'lcod://rag/registry/snapshot_write@0.1.0', segment: 'packages/rag/components/registry.snapshot_write/compose.yaml' }
+          ];
+          const components = await Promise.all(registrations.map(async (entry) => ({
+            id: entry.id,
+            composePath: await join(entry.segment)
+          })));
+          return { components };
+        }
+      input:
+        ragRoot: $.ragRoot
+      imports:
+        pathJoin: lcod://axiom/path/join@1
+    out:
+      ragComponents: components
+
+  - call: lcod://tooling/resolver/register@1
+    in:
+      components: $.ragComponents
+    out:
+      registered: registered
+      warnings: warnings

@@ -1,0 +1,4 @@
+id = "lcod://rag/registry/register_helpers@0.1.0"
+name = "registry.register_helpers"
+version = "0.1.0"
+kind = "component"

@@ -9,8 +9,7 @@ compose:
     in:
       source: |
         async ({ state }) => {
-          const json = JSON.stringify(state.snapshotObject || {}, null, 2) + '
-';
+          const json = JSON.stringify(state.snapshotObject || {}, null, 2) + '\n';
           return { json };
         }
       input:
