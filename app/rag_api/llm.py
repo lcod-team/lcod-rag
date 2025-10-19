@@ -15,7 +15,8 @@ def embed_texts(chunks: Iterable[str]) -> list[list[float]]:
     url = f"{base_url}/api/embeddings"
     vectors: list[list[float]] = []
     for chunk in chunks:
-        response = requests.post(url, json={"model": settings.embedding_model, "input": chunk}, timeout=60)
+        payload = {"model": settings.embedding_model, "prompt": chunk}
+        response = requests.post(url, json=payload, timeout=60)
         response.raise_for_status()
         data = response.json()
         vector = data.get("embedding") or data.get("data", [{}])[0].get("embedding")
