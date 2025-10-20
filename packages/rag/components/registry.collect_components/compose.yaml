@@ -94,43 +94,6 @@ compose:
       registeredCount: registered
       registerWarnings: warnings
 
-  # Register rag helper components
-  - call: lcod://tooling/script@1
-    in:
-      source: |
-        async ({ state }, { imports }) => {
-          const result = await imports.pathJoin({
-            base: state.ragRoot,
-            segment: 'packages/rag/components/registry.register_helpers/compose.yaml'
-          });
-          const composePath = result?.path || result;
-          return {
-            helperRegistration: composePath
-              ? [{ id: 'lcod://rag/registry/register_helpers@0.1.0', composePath }]
-              : []
-          };
-        }
-      input:
-        ragRoot: $.ragRoot
-      imports:
-        pathJoin: lcod://axiom/path/join@1
-    out:
-      helperRegistration: helperRegistration
-
-  - call: lcod://tooling/resolver/register@1
-    in:
-      components: $.helperRegistration
-    out:
-      helperRegistered: helperRegistered
-      helperRegisterWarnings: helperRegisterWarnings
-
-  - call: lcod://rag/registry/register_helpers@0.1.0
-    in:
-      ragRoot: $.ragRoot
-    out:
-      ragRegistered: registered
-      ragRegisterWarnings: warnings
-
   # Build inline sources config for the catalogue pointer
   - call: lcod://impl/set@1
     in:
@@ -172,32 +135,6 @@ compose:
       value: $.registerWarnings
     out:
       baseWarnings: resolved
-
-  - call: lcod://tooling/value/default_array@0.1.0
-    in:
-      value: $.helperRegisterWarnings
-    out:
-      helperWarningsList: resolved
-
-  - call: lcod://tooling/value/default_array@0.1.0
-    in:
-      value: $.ragRegisterWarnings
-    out:
-      ragWarningsList: resolved
-
-  - call: lcod://tooling/array/append@0.1.0
-    in:
-      items: $.baseWarnings
-      values: $.helperWarningsList
-    out:
-      baseWarnings: items
-
-  - call: lcod://tooling/array/append@0.1.0
-    in:
-      items: $.baseWarnings
-      values: $.ragWarningsList
-    out:
-      baseWarnings: items
 
   - call: lcod://tooling/value/default_array@0.1.0
     in:
