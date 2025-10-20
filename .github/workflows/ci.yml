@@ -36,18 +36,18 @@ jobs:
           fi
           chmod +x lcod-run
 
-      - name: Prepare state file
+      - name: Prepare input file
         run: |
-          STATE_DIR="${GITHUB_WORKSPACE}/.ci"
-          STATE_PATH="${STATE_DIR}/state.json"
-          mkdir -p "${STATE_DIR}"
-          cat <<JSON > "${STATE_PATH}"
+          INPUT_DIR="${GITHUB_WORKSPACE}/.ci"
+          INPUT_PATH="${INPUT_DIR}/input.json"
+          mkdir -p "${INPUT_DIR}"
+          cat <<JSON > "${INPUT_PATH}"
           {
             "projectPath": ".",
             "cataloguesPath": "${GITHUB_WORKSPACE}/lcod-registry/catalogues.json",
             "specRoot": "${GITHUB_WORKSPACE}/lcod-spec",
             "ragRoot": "${GITHUB_WORKSPACE}",
-            "snapshotPath": "${STATE_DIR}/previous_snapshot.json"
+            "snapshotPath": "${INPUT_DIR}/previous_snapshot.json"
           }
           JSON
 
@@ -55,4 +55,4 @@ jobs:
         run: |
           ./lcod-run \
             --compose packages/rag/components/registry.prepare_ingestion/compose.yaml \
-            --state .ci/state.json
+            --input .ci/input.json
