@@ -38,24 +38,18 @@ jobs:
 
       - name: Prepare state file
         run: |
-          python3 - <<'PY'
-import json
-import os
-from pathlib import Path
-
-workspace = Path(os.environ["GITHUB_WORKSPACE"])
-state = {
-    "projectPath": ".",
-    "cataloguesPath": str(workspace / "lcod-registry" / "catalogues.json"),
-    "specRoot": str(workspace / "lcod-spec"),
-    "ragRoot": str(workspace),
-    "snapshotPath": str(workspace / ".ci" / "previous_snapshot.json")
+          STATE_DIR="${GITHUB_WORKSPACE}/.ci"
+          STATE_PATH="${STATE_DIR}/state.json"
+          mkdir -p "${STATE_DIR}"
+          cat <<JSON > "${STATE_PATH}"
+{
+  "projectPath": ".",
+  "cataloguesPath": "${GITHUB_WORKSPACE}/lcod-registry/catalogues.json",
+  "specRoot": "${GITHUB_WORKSPACE}/lcod-spec",
+  "ragRoot": "${GITHUB_WORKSPACE}",
+  "snapshotPath": "${STATE_DIR}/previous_snapshot.json"
 }
-output_path = workspace / ".ci"
-output_path.mkdir(exist_ok=True)
-state_path = output_path / "state.json"
-state_path.write_text(json.dumps(state, indent=2))
-PY
+JSON
 
       - name: Run registry prepare_ingestion compose
         run: |
