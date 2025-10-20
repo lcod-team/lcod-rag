@@ -9,8 +9,6 @@ on:
 jobs:
   test-registry-ingestion:
     runs-on: ubuntu-latest
-    env:
-      LCOD_RUN_VERSION: v0.1.5
     steps:
       - name: Checkout lcod-rag
         uses: actions/checkout@v4
@@ -27,14 +25,18 @@ jobs:
           repository: lcod-team/lcod-registry
           path: lcod-registry
 
-      - name: Download lcod-run
-        run: |
-          curl -sSL "https://github.com/lcod-team/lcod-kernel-rs/releases/download/${LCOD_RUN_VERSION}/lcod-run-linux-x86_64.tar.gz" -o lcod-run.tar.gz
-          tar -xzf lcod-run.tar.gz
-          if [ -d lcod-run-linux-x86_64 ]; then
-            mv lcod-run-linux-x86_64/lcod-run .
-          fi
-          chmod +x lcod-run
+      - name: Checkout lcod-kernel-rs
+        uses: actions/checkout@v4
+        with:
+          repository: lcod-team/lcod-kernel-rs
+          path: lcod-kernel-rs
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
 
       - name: Prepare input file
         run: |
@@ -43,7 +45,7 @@ jobs:
           mkdir -p "${INPUT_DIR}"
           cat <<JSON > "${INPUT_PATH}"
           {
-            "projectPath": ".",
+            "projectPath": "${GITHUB_WORKSPACE}",
             "cataloguesPath": "${GITHUB_WORKSPACE}/lcod-registry/catalogues.json",
             "specRoot": "${GITHUB_WORKSPACE}/lcod-spec",
             "ragRoot": "${GITHUB_WORKSPACE}",
@@ -51,8 +53,16 @@ jobs:
           }
           JSON
 
+      - name: Build run_compose (release)
+        run: cargo build --release --bin run_compose
+        working-directory: lcod-kernel-rs
+
       - name: Run registry prepare_ingestion compose
+        env:
+          LCOD_HOME: ${GITHUB_WORKSPACE}/lcod-kernel-rs/target/release
         run: |
-          ./lcod-run \
-            --compose packages/rag/components/registry.prepare_ingestion/compose.yaml \
-            --input .ci/input.json
+          ./target/release/run_compose \
+            --project ${GITHUB_WORKSPACE} \
+            --compose ${GITHUB_WORKSPACE}/packages/rag/components/registry.prepare_ingestion/compose.yaml \
+            --state ${GITHUB_WORKSPACE}/.ci/input.json
+        working-directory: lcod-kernel-rs
