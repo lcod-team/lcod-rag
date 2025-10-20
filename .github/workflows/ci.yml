@@ -53,7 +53,7 @@ jobs:
 
       - name: Run registry prepare_ingestion compose
         run: |
-          ./lcod-run --core --resolver \
+          ./lcod-run \
             --project packages/rag \
             --compose packages/rag/components/registry.prepare_ingestion/compose.yaml \
             --state .ci/state.json
