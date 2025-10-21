@@ -67,6 +67,7 @@ compose:
             { id: 'lcod://tooling/object/set@0.1.0', path: 'tooling/object/set/compose.yaml' },
             { id: 'lcod://tooling/json/stable_stringify@0.1.0', path: 'tooling/json/stable_stringify/compose.yaml' },
             { id: 'lcod://tooling/hash/to_key@0.1.0', path: 'tooling/hash/to_key/compose.yaml' },
+            { id: 'lcod://tooling/queue/bfs@0.1.0', path: 'tooling/queue/bfs/compose.yaml' },
             { id: 'lcod://tooling/fs/read_optional@0.1.0', path: 'tooling/fs/read_optional/compose.yaml' },
             { id: 'lcod://tooling/registry_sources/prepare_env@0.1.0', path: 'tooling/registry_sources/prepare_env/compose.yaml' },
             { id: 'lcod://tooling/registry_sources/load_config@0.1.0', path: 'tooling/registry_sources/load_config/compose.yaml' },
