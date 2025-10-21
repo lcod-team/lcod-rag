@@ -10,22 +10,10 @@ jobs:
   test-registry-ingestion:
     runs-on: ubuntu-latest
     env:
-      LCOD_RUN_VERSION: lcod-run-v0.1.9
+      LCOD_RUN_VERSION: lcod-run-v0.1.11
     steps:
       - name: Checkout lcod-rag
         uses: actions/checkout@v4
-
-      - name: Checkout lcod-spec
-        uses: actions/checkout@v4
-        with:
-          repository: lcod-team/lcod-spec
-          path: lcod-spec
-
-      - name: Checkout lcod-registry
-        uses: actions/checkout@v4
-        with:
-          repository: lcod-team/lcod-registry
-          path: lcod-registry
 
       - name: Prepare input file
         run: |
@@ -34,11 +22,8 @@ jobs:
           mkdir -p "${INPUT_DIR}"
           cat <<JSON > "${INPUT_PATH}"
           {
-            "projectPath": "${GITHUB_WORKSPACE}",
-            "cataloguesPath": "${GITHUB_WORKSPACE}/lcod-registry/catalogues.json",
-            "specRoot": "${GITHUB_WORKSPACE}/lcod-spec",
-            "ragRoot": "${GITHUB_WORKSPACE}",
-            "snapshotPath": "${INPUT_DIR}/previous_snapshot.json"
+            "snapshotPath": "${INPUT_DIR}/registry_snapshot.json",
+            "missingSnapshotWarning": "CI bootstrap snapshot"
           }
           JSON
 
