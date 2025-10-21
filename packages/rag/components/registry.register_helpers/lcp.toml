@@ -2,3 +2,11 @@ id = "lcod://rag/registry/register_helpers@0.1.0"
 name = "registry.register_helpers"
 version = "0.1.0"
 kind = "component"
+
+[deps]
+requires = [
+  "lcod://axiom/path/join@1",
+  "lcod://flow/foreach@1",
+  "lcod://impl/set@1",
+  "lcod://tooling/resolver/register@1"
+]
