@@ -1,0 +1,55 @@
+compose:
+  - call: lcod://rag/registry/prepare_ingestion@0.1.0
+    in:
+      projectPath: $.projectPath
+      cataloguesPath: $.cataloguesPath
+      cataloguesUrl: $.cataloguesUrl
+      sourceId: $.sourceId
+      cacheDir: $.cacheDir
+      cwd: $.cwd
+      specRoot: $.specRoot
+      ragRoot: $.ragRoot
+      repoRoots: $.repoRoots
+      snapshotPath: $.snapshotPath
+      missingSnapshotWarning: $.missingSnapshotWarning
+    out:
+      components: components
+      snapshot: snapshot
+      snapshotEntries: snapshotEntries
+      diff: diff
+      previousExists: previousExists
+      warnings: warnings
+      componentCount: componentCount
+      cataloguesCount: cataloguesCount
+      snapshotPath: snapshotPath
+
+  - call: lcod://rag/registry/snapshot_write@0.1.0
+    in:
+      path: $.snapshotPath
+      snapshot: $.snapshot
+    out:
+      snapshotWritten: written
+
+  - call: lcod://impl/set@1
+    in:
+      components: $.components
+      snapshot: $.snapshot
+      snapshotEntries: $.snapshotEntries
+      diff: $.diff
+      previousExists: $.previousExists
+      warnings: $.warnings
+      componentCount: $.componentCount
+      cataloguesCount: $.cataloguesCount
+      snapshotPath: $.snapshotPath
+      snapshotWritten: $.snapshotWritten
+    out:
+      components: components
+      snapshot: snapshot
+      snapshotEntries: snapshotEntries
+      diff: diff
+      previousExists: previousExists
+      warnings: warnings
+      componentCount: componentCount
+      cataloguesCount: cataloguesCount
+      snapshotPath: snapshotPath
+      snapshotWritten: snapshotWritten

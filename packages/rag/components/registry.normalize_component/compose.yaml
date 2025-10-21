@@ -15,16 +15,21 @@ compose:
           const asObject = (value) => (value && typeof value === 'object' && !Array.isArray(value) ? value : null);
 
           const componentId = asString(record.id);
-          const version = asString(record.version);
+          let version = asString(record.version);
+          if (!version && componentId) {
+            const atIndex = componentId.lastIndexOf('@');
+            if (atIndex > 0 && atIndex < componentId.length - 1) {
+              version = componentId.slice(atIndex + 1);
+            }
+          }
 
           if (!componentId || !version) {
-            if (!componentId || !version) {
-              warnings.push('registry.normalize_component: missing id or version on component entry');
-            }
+            warnings.push('registry.normalize_component: missing id or version on component entry');
             return { component: null, warnings };
           }
 
-          const manifest = asString(record.manifest);
+          const manifest = asString(record.manifest) || asString(record.composePath);
+          const composePath = asString(record.composePath) || manifest;
           const registryId = asString(record.registryId) || asString(source.registryId) || null;
 
           const pickNumber = (value) => (Number.isFinite(value) ? Math.trunc(value) : null);
@@ -34,18 +39,28 @@ compose:
           const artifact = asObject(record.artifact);
           const defaults = asObject(source.defaults);
           const sourceMetadata = asObject(source.metadata);
+          const sourceRepo = asString(record.sourceRepo)
+            || asString(source.sourceRepo)
+            || (sourceMetadata && asString(sourceMetadata.sourceRepo))
+            || null;
 
           const component = {
             componentId,
             version,
             manifest,
+            composePath,
             registryId,
             priority,
             sha256,
             artifact: artifact || null,
             defaults: defaults || null,
-            sourceMetadata: sourceMetadata || null
+            sourceMetadata: sourceMetadata || null,
+            sourceRepo
           };
+
+          if (!component.manifest) {
+            warnings.push(`registry.normalize_component: component ${componentId} missing manifest reference`);
+          }
 
           return { component, warnings };
         }

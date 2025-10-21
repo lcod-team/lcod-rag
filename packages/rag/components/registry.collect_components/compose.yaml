@@ -1,19 +1,4 @@
 compose:
-  # Built-in default catalogue (lcod-registry)
-  - call: lcod://impl/set@1
-    in:
-      defaultSourcesSpec:
-        schema: 'lcod-resolver/sources@1'
-        sources:
-          - id: 'lcod-registry'
-            priority: 50
-            entrypoint:
-              type: 'https'
-              url: 'https://raw.githubusercontent.com/lcod-team/lcod-registry/main/catalogues.json'
-    out:
-      defaultSourcesSpec: defaultSourcesSpec
-
-  # Prepare paths and defaults
   - call: lcod://tooling/script@1
     in:
       source: |
@@ -23,193 +8,261 @@ compose:
             if (typeof fallback === 'string' && fallback.length > 0) return fallback;
             return defaultValue;
           };
+          const repoRoots = state.repoRoots && typeof state.repoRoots === 'object' && !Array.isArray(state.repoRoots)
+            ? state.repoRoots
+            : {};
           return {
             projectPath: pick(state.projectPath, state.cwd, '.'),
-            cataloguesPath: pick(state.cataloguesPath, null, 'catalogues.json'),
-            sourceId: pick(state.sourceId, null, 'catalogues'),
-            specRoot: pick(state.specRoot, null, '../lcod-spec'),
-            ragRoot: pick(state.ragRoot, null, '.')
+            specRoot: pick(state.specRoot, null, null),
+            ragRoot: pick(state.ragRoot, state.cwd, '.'),
+            repoRoots,
+            cataloguesUrl: pick(
+              state.cataloguesUrl,
+              null,
+              'https://raw.githubusercontent.com/lcod-team/lcod-registry/main/catalogues.json'
+            ),
+            cataloguesPath: pick(state.cataloguesPath, null, null)
           };
         }
       input:
         projectPath: $.projectPath
-        cataloguesPath: $.cataloguesPath
-        sourceId: $.sourceId
         specRoot: $.specRoot
         ragRoot: $.ragRoot
+        repoRoots: $.repoRoots
+        cataloguesUrl: $.cataloguesUrl
+        cataloguesPath: $.cataloguesPath
         cwd: $.cwd
     out:
       projectPath: projectPath
-      cataloguesPath: cataloguesPath
-      sourceId: sourceId
       specRoot: specRoot
       ragRoot: ragRoot
+      repoRoots: repoRoots
+      cataloguesUrl: cataloguesUrl
+      cataloguesPath: cataloguesPath
 
-  # Register spec helpers (tooling/value, registry_sources, fs, etc.)
   - call: lcod://tooling/script@1
     in:
       source: |
         async ({ state }, { imports }) => {
-          const join = async (segment) => {
-            const result = await imports.pathJoin({ base: state.specRoot, segment });
-            return result?.path || segment;
-          };
-          const definitions = [
-            { id: 'lcod://tooling/value/default_object@0.1.0', path: 'tooling/value/default_object/compose.yaml' },
-            { id: 'lcod://tooling/value/default_array@0.1.0', path: 'tooling/value/default_array/compose.yaml' },
-            { id: 'lcod://tooling/value/is_object@0.1.0', path: 'tooling/value/is_object/compose.yaml' },
-            { id: 'lcod://tooling/value/is_array@0.1.0', path: 'tooling/value/is_array/compose.yaml' },
-            { id: 'lcod://tooling/value/is_string_nonempty@0.1.0', path: 'tooling/value/is_string_nonempty/compose.yaml' },
-            { id: 'lcod://tooling/array/append@0.1.0', path: 'tooling/array/append/compose.yaml' },
-            { id: 'lcod://tooling/array/compact@0.1.0', path: 'tooling/array/compact/compose.yaml' },
-            { id: 'lcod://tooling/array/concat@0.1.0', path: 'tooling/array/concat/compose.yaml' },
-            { id: 'lcod://tooling/object/has@0.1.0', path: 'tooling/object/has/compose.yaml' },
-            { id: 'lcod://tooling/object/set@0.1.0', path: 'tooling/object/set/compose.yaml' },
-            { id: 'lcod://tooling/json/stable_stringify@0.1.0', path: 'tooling/json/stable_stringify/compose.yaml' },
-            { id: 'lcod://tooling/hash/to_key@0.1.0', path: 'tooling/hash/to_key/compose.yaml' },
-            { id: 'lcod://tooling/queue/bfs@0.1.0', path: 'tooling/queue/bfs/compose.yaml' },
-            { id: 'lcod://tooling/fs/read_optional@0.1.0', path: 'tooling/fs/read_optional/compose.yaml' },
-            { id: 'lcod://tooling/registry_sources/prepare_env@0.1.0', path: 'tooling/registry_sources/prepare_env/compose.yaml' },
-            { id: 'lcod://tooling/registry_sources/load_config@0.1.0', path: 'tooling/registry_sources/load_config/compose.yaml' },
-            { id: 'lcod://tooling/registry_sources/collect_entries@0.1.0', path: 'tooling/registry_sources/collect_entries/compose.yaml' },
-            { id: 'lcod://tooling/registry_sources/collect_queue@0.1.0', path: 'tooling/registry_sources/collect_queue/compose.yaml' },
-            { id: 'lcod://tooling/registry_sources/merge_inline_entries@0.1.0', path: 'tooling/registry_sources/merge_inline_entries/compose.yaml' },
-            { id: 'lcod://tooling/registry_sources/normalize_pointer@0.1.0', path: 'tooling/registry_sources/normalize_pointer/compose.yaml' },
-            { id: 'lcod://tooling/registry_sources/partition_normalized@0.1.0', path: 'tooling/registry_sources/partition_normalized/compose.yaml' },
-            { id: 'lcod://tooling/registry_sources/process_catalogue@0.1.0', path: 'tooling/registry_sources/process_catalogue/compose.yaml' },
-            { id: 'lcod://tooling/registry_sources/process_pointer@0.1.0', path: 'tooling/registry_sources/process_pointer/compose.yaml' },
-            { id: 'lcod://tooling/registry_sources/resolve@0.1.0', path: 'tooling/registry_sources/resolve/compose.yaml' },
-            { id: 'lcod://core/string/format@0.1.0', path: 'core/string/format/compose.yaml' }
-          ];
-          const components = await Promise.all(definitions.map(async (def) => ({
-            id: def.id,
-            composePath: await join(def.path)
-          })));
-          return { specComponents: components };
+          const warnings = [];
+          const ensureString = (value) => (typeof value === 'string' && value.length > 0 ? value : null);
+          let text = null;
+          let decoded = null;
+
+          const cataloguesUrl = ensureString(state.cataloguesUrl);
+          let responseStatus = null;
+          let responseBodyType = null;
+          if (cataloguesUrl) {
+            try {
+              const response = await imports.httpRequest({
+                method: 'GET',
+                url: cataloguesUrl,
+                headers: { accept: 'application/json' }
+              });
+              responseStatus = typeof response?.status === 'number' ? response.status : null;
+              responseBodyType = typeof response?.body;
+              if (responseStatus !== null && responseStatus >= 200 && responseStatus < 300) {
+                const body = response?.body ?? null;
+                if (typeof body === 'string') {
+                  text = body;
+                } else if (body && typeof body === 'object') {
+                  decoded = body;
+                } else {
+                  warnings.push(`catalogues ${cataloguesUrl} returned an unexpected body shape`);
+                }
+              } else {
+                warnings.push(
+                  responseStatus !== null
+                    ? `Failed to download catalogues from ${cataloguesUrl} (status ${responseStatus})`
+                    : `Failed to download catalogues from ${cataloguesUrl}`
+                );
+              }
+            } catch (error) {
+              warnings.push(`HTTP error fetching ${cataloguesUrl}: ${error?.message || error}`);
+            }
+          }
+
+          if (!text && !decoded) {
+            const cataloguesPath = ensureString(state.cataloguesPath);
+            if (cataloguesPath) {
+              try {
+                const absolute = cataloguesPath.startsWith('/')
+                  ? cataloguesPath
+                  : (await imports.pathJoin({ base: state.projectPath, segment: cataloguesPath }))?.path || cataloguesPath;
+                const file = await imports.fsReadFile({ path: absolute, encoding: 'utf-8' });
+                text = file?.data ?? null;
+              } catch (error) {
+                warnings.push(`Failed to read ${cataloguesPath}: ${error?.message || error}`);
+              }
+            }
+          }
+
+          let manifestObject = null;
+          if (decoded && typeof decoded === 'object') {
+            manifestObject = decoded;
+          } else if (typeof text === 'string') {
+            try {
+              manifestObject = JSON.parse(text);
+            } catch (error) {
+              warnings.push(`Invalid JSON in catalogues: ${error?.message || error}`);
+            }
+          }
+
+          let catalogues = [];
+          if (manifestObject && typeof manifestObject === 'object') {
+            if (Array.isArray(manifestObject.catalogues)) {
+              catalogues = manifestObject.catalogues;
+            } else {
+              warnings.push('catalogues manifest missing "catalogues" array');
+            }
+          } else if (!cataloguesUrl && !state.cataloguesPath) {
+            warnings.push('Unable to obtain catalogues manifest (no URL or local path provided)');
+          } else if (!text && !decoded) {
+            warnings.push('Unable to obtain catalogues manifest (HTTP and local fallback failed)');
+          }
+
+          return { catalogues, warnings, responseStatus, responseBodyType };
         }
       input:
-        specRoot: $.specRoot
+        cataloguesUrl: $.cataloguesUrl
+        cataloguesPath: $.cataloguesPath
+        projectPath: $.projectPath
       imports:
         pathJoin: lcod://axiom/path/join@1
+        fsReadFile: lcod://contract/core/fs/read-file@1
+        httpRequest: lcod://contract/core/http/request@1
     out:
-      specComponents: specComponents
+      catalogues: catalogues
+      fetchWarnings: warnings
+      cataloguesResponseStatus: responseStatus
+      cataloguesResponseBodyType: responseBodyType
 
-  - call: lcod://tooling/resolver/register@1
+  - call: lcod://tooling/value/default_array@0.1.0
     in:
-      components: $.specComponents
+      value: $.fetchWarnings
     out:
-      registeredCount: registered
-      registerWarnings: warnings
-
-  # Build inline sources config for the catalogue pointer
-  - call: lcod://impl/set@1
-    in:
-      sourcesConfig:
-        schema: 'lcod-resolver/sources@1'
-        sources:
-          - id: $.sourceId
-            entrypoint:
-              type: 'file'
-              path: $.cataloguesPath
-    out:
-      sourcesConfig: sourcesConfig
+      accumulatedWarnings: resolved
 
   - call: lcod://tooling/script@1
     in:
       source: |
-        async ({ state }) => ({
-          json: JSON.stringify(state.value ?? {})
-        })
+        async ({ state }) => {
+          const list = Array.isArray(state.catalogues) ? state.catalogues : [];
+          return { list };
+        }
       input:
-        value: $.sourcesConfig
+        catalogues: $.catalogues
     out:
-      sourcesConfigJson: json
+      cataloguesList: list
 
-  # Resolve registry sources using the spec helpers
-  - call: lcod://tooling/registry_sources/resolve@0.1.0
+  - call: lcod://tooling/script@1
     in:
-      projectPath: $.projectPath
-      cacheDir: $.cacheDir
-      cwd: $.cwd
-      sourcesText: $.sourcesConfigJson
+      source: |
+        async ({ state }) => {
+          const list = Array.isArray(state.catalogues) ? state.catalogues : [];
+          return { count: list.length };
+        }
+      input:
+        catalogues: $.cataloguesList
     out:
-      registrySources: registrySources
-      resolveWarnings: warnings
+      cataloguesCount: count
 
-  # Collect base warnings
-  - call: lcod://tooling/value/default_array@0.1.0
+  - call: lcod://tooling/value/default_object@0.1.0
     in:
-      value: $.registerWarnings
-    out:
-      baseWarnings: resolved
+      value:
+        cataloguesCount: lcod://tooling/value/default_array@0.1.0
 
-  - call: lcod://tooling/value/default_array@0.1.0
-    in:
-      value: $.resolveWarnings
-    out:
-      resolveWarningsList: resolved
-
-  - call: lcod://tooling/array/append@0.1.0
-    in:
-      items: $.baseWarnings
-      values: $.resolveWarningsList
-    out:
-      warnings: items
-
-  # Ensure registry sources array
-  - call: lcod://tooling/value/default_array@0.1.0
-    in:
-      value: $.registrySources
-    out:
-      registrySourcesList: resolved
-
-  # Process each registry source
   - call: lcod://flow/foreach@1
     in:
-      list: $.registrySourcesList
+      list: $.cataloguesList
     children:
       body:
         - call: lcod://tooling/value/default_object@0.1.0
           in:
             value: $slot.item
           out:
-            sourceObject: resolved
+            catalogueObject: resolved
+
+        - call: lcod://tooling/script@1
+          in:
+            source: |
+              async ({ state }) => {
+                const ensureString = (value) => (typeof value === 'string' && value.length > 0 ? value : null);
+                const ensureObject = (value) => (value && typeof value === 'object' && !Array.isArray(value) ? value : null);
+                const catalogue = ensureObject(state.catalogue) || {};
+                const metadata = ensureObject(catalogue.metadata) || {};
+                const warnings = [];
+
+                const registryId = ensureString(catalogue.id) || 'catalogue';
+                const priority = Number.isFinite(catalogue.priority) ? Math.trunc(catalogue.priority) : null;
+                const manifestPath = ensureString(metadata.manifestPath);
+                const manifestUrl = ensureString(metadata.manifestUrl) || ensureString(catalogue.url);
+                const sourceRepo = ensureString(metadata.sourceRepo);
+                const commit = ensureString(metadata.commit) || ensureString(catalogue.commit);
+
+                if (!manifestPath && !manifestUrl) {
+                  warnings.push(`catalogue ${registryId} is missing manifest reference`);
+                }
+
+                return {
+                  sourceMetadata: {
+                    registryId,
+                    priority,
+                    manifestPath: manifestPath || null,
+                    manifestUrl: manifestUrl || null,
+                    sourceRepo: sourceRepo || null,
+                    description: ensureString(catalogue.description) || null,
+                    commit,
+                    metadata
+                  },
+                  warnings
+                };
+              }
+            input:
+              catalogue: $.catalogueObject
+          out:
+            sourceMetadata: sourceMetadata
+            metadataWarnings: warnings
 
         - call: lcod://tooling/value/default_array@0.1.0
           in:
-            value: $.sourceObject.lines
+            value: $.metadataWarnings
           out:
-            inlineLines: resolved
+            sourceWarnings: resolved
 
-        - call: lcod://rag/jsonl/parse_objects@0.1.0
+        - call: lcod://rag/registry/load_manifest_records@0.1.0
           in:
-            text: $.sourceObject.jsonl
+            metadata: $.sourceMetadata
+            repoRoots: $.repoRoots
+            projectPath: $.projectPath
+            specRoot: $.specRoot
+            ragRoot: $.ragRoot
           out:
-            parsedItems: items
-            parseWarnings: warnings
-
-        - call: lcod://tooling/value/default_array@0.1.0
-          in:
-            value: $.parsedItems
-          out:
-            parsedList: resolved
-
-        - call: lcod://tooling/array/concat@0.1.0
-          in:
-            left: $.parsedList
-            right: $.inlineLines
-          out:
-            combinedRecords: items
+            manifestRecords: records
+            manifestWarnings: warnings
 
         - call: lcod://tooling/value/default_array@0.1.0
           in:
-            value: $.combinedRecords
+            value: $.manifestWarnings
           out:
-            recordsList: resolved
+            manifestWarningsList: resolved
+
+        - call: lcod://tooling/array/append@0.1.0
+          in:
+            items: $.sourceWarnings
+            values: $.manifestWarningsList
+          out:
+            sourceWarnings: items
+
+        - call: lcod://tooling/value/default_array@0.1.0
+          in:
+            value: $.manifestRecords
+          out:
+            manifestRecordsList: resolved
 
         - call: lcod://flow/foreach@1
           in:
-            list: $.recordsList
+            list: $.manifestRecordsList
           children:
             body:
               - call: lcod://tooling/value/default_object@0.1.0
@@ -220,7 +273,7 @@ compose:
               - call: lcod://rag/registry/normalize_component@0.1.0
                 in:
                   record: $.recordObject
-                  source: $.sourceObject
+                  source: $.sourceMetadata
                 out:
                   normalizedComponent: component
                   normalizedWarnings: warnings
@@ -240,11 +293,11 @@ compose:
             items: $.normalizationResults
             field: 'component'
           out:
-            candidateComponents: values
+            componentsList: values
 
         - call: lcod://rag/array/compact@0.1.0
           in:
-            items: $.candidateComponents
+            items: $.componentsList
           out:
             componentsList: values
 
@@ -263,19 +316,13 @@ compose:
 
         - call: lcod://tooling/value/default_array@0.1.0
           in:
-            value: $.parseWarnings
-          out:
-            parseWarningsList: resolved
-
-        - call: lcod://tooling/value/default_array@0.1.0
-          in:
             value: $.normalizationWarnings
           out:
             normalizationWarningsList: resolved
 
         - call: lcod://tooling/array/append@0.1.0
           in:
-            items: $.parseWarningsList
+            items: $.sourceWarnings
             values: $.normalizationWarningsList
           out:
             sourceWarnings: items
@@ -289,12 +336,11 @@ compose:
             entry: entry
     collectPath: $.entry
     out:
-      perSourceResults: results
+      perCatalogueResults: results
 
-  # Merge per-source components and warnings
   - call: lcod://rag/array/pluck@0.1.0
     in:
-      items: $.perSourceResults
+      items: $.perCatalogueResults
       field: 'components'
     out:
       componentsNested: values
@@ -303,11 +349,11 @@ compose:
     in:
       items: $.componentsNested
     out:
-      componentsFlat: values
+      components: values
 
   - call: lcod://rag/array/pluck@0.1.0
     in:
-      items: $.perSourceResults
+      items: $.perCatalogueResults
       field: 'warnings'
     out:
       warningsNested: values
@@ -316,25 +362,41 @@ compose:
     in:
       items: $.warningsNested
     out:
-      perSourceWarnings: values
+      perCatalogueWarnings: values
 
   - call: lcod://tooling/value/default_array@0.1.0
     in:
-      value: $.perSourceWarnings
+      value: $.perCatalogueWarnings
     out:
-      perSourceWarningsList: resolved
+      perCatalogueWarningsList: resolved
 
   - call: lcod://tooling/array/append@0.1.0
     in:
-      items: $.warnings
-      values: $.perSourceWarningsList
+      items: $.accumulatedWarnings
+      values: $.perCatalogueWarningsList
     out:
-      allWarnings: items
+      warnings: items
+
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }) => {
+          const list = Array.isArray(state.components) ? state.components : [];
+          return { componentCount: list.length };
+        }
+      input:
+        components: $.components
+    out:
+      componentCount: componentCount
 
   - call: lcod://impl/set@1
     in:
-      components: $.componentsFlat
-      warnings: $.allWarnings
+      components: $.components
+      warnings: $.warnings
+      componentCount: $.componentCount
+      cataloguesCount: $.cataloguesCount
     out:
       components: components
       warnings: warnings
+      componentCount: componentCount
+      cataloguesCount: cataloguesCount

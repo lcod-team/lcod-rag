@@ -1,0 +1,66 @@
+id = "lcod://rag/registry/load_manifest_records@0.1.0"
+name = "registry.load_manifest_records"
+version = "0.1.0"
+kind = "component"
+
+summary = "Resolve and parse a registry manifest (JSON array) using metadata hints."
+
+[[io.input]]
+name = "metadata"
+type = "object"
+description = "Metadata from the registry entry (expects manifestPath/sourceRepo)."
+optional = true
+
+[[io.input]]
+name = "repoRoots"
+type = "object"
+description = "Map of sourceRepo URLs to local checkout paths."
+optional = true
+
+[[io.input]]
+name = "projectPath"
+type = "string"
+description = "Fallback path for relative manifest resolution."
+optional = true
+
+[[io.input]]
+name = "specRoot"
+type = "string"
+description = "Path to the lcod-spec checkout (additional fallback)."
+optional = true
+
+[[io.input]]
+name = "ragRoot"
+type = "string"
+description = "Path to the lcod-rag checkout (additional fallback)."
+optional = true
+
+[[io.input]]
+name = "repoRoot"
+type = "string"
+description = "Explicit repository root override."
+optional = true
+
+[[io.input]]
+name = "manifestPath"
+type = "string"
+description = "Override for the manifest relative path."
+optional = true
+
+[[io.output]]
+name = "records"
+type = "array"
+description = "Array of manifest entries."
+
+[[io.output]]
+name = "warnings"
+type = "array"
+description = "Warnings produced during resolution or parsing."
+
+[deps]
+requires = [
+  "lcod://tooling/script@1",
+  "lcod://axiom/path/join@1",
+  "lcod://contract/core/fs/read-file@1",
+  "lcod://core/json/decode@1"
+]

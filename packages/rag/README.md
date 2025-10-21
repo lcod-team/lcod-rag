@@ -16,3 +16,4 @@ Components:
 - `lcod://rag/registry/snapshot_read@0.1.0` — load an on-disk snapshot (if present) with warnings for missing/invalid files.
 - `lcod://rag/registry/snapshot_write@0.1.0` — persist the snapshot JSON only when the content changes.
 - `lcod://rag/registry/prepare_ingestion@0.1.0` — drive the snapshot read → collect → diff orchestration before embedding updates.
+- `lcod://rag/registry/refresh_snapshot@0.1.0` — run the ingestion flow and update the snapshot on disk in a single command.

@@ -53,3 +53,7 @@ path = "components/registry.snapshot_write"
 [[workspace.components]]
 id = "lcod://rag/registry/prepare_ingestion@0.1.0"
 path = "components/registry.prepare_ingestion"
+
+[[workspace.components]]
+id = "lcod://rag/registry/refresh_snapshot@0.1.0"
+path = "components/registry.refresh_snapshot"

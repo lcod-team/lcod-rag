@@ -1,0 +1,6 @@
+[component]
+id = "lcod://rag/registry/refresh_snapshot@0.1.0"
+name = "registry.refresh_snapshot"
+version = "0.1.0"
+summary = "Collect registry entries and update the local snapshot in a single compose."
+path = "compose.yaml"

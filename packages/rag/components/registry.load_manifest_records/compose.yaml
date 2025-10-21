@@ -1,0 +1,141 @@
+compose:
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }, { imports }) => {
+          const warnings = [];
+          const metadata = state.metadata && typeof state.metadata === 'object' && !Array.isArray(state.metadata)
+            ? state.metadata
+            : {};
+
+          const ensureString = (value) => (typeof value === 'string' && value.length > 0 ? value : null);
+
+          const manifestUrl = ensureString(metadata.manifestUrl) || ensureString(state.manifestUrl);
+          const manifestPath = ensureString(metadata.manifestPath) || ensureString(state.manifestPath);
+
+          const repoRoots = state.repoRoots && typeof state.repoRoots === 'object' && !Array.isArray(state.repoRoots)
+            ? state.repoRoots
+            : {};
+          const sourceRepo = ensureString(metadata.sourceRepo);
+
+          const bases = [];
+          const pushBase = (candidate) => {
+            const resolved = ensureString(candidate);
+            if (resolved) bases.push(resolved);
+          };
+
+          if (sourceRepo && repoRoots[sourceRepo]) pushBase(repoRoots[sourceRepo]);
+          pushBase(metadata.localRoot);
+          pushBase(state.repoRoot);
+          pushBase(state.projectPath);
+          pushBase(state.ragRoot);
+          pushBase(state.specRoot);
+
+          let text = null;
+          let decoded = null;
+
+          if (manifestUrl) {
+            try {
+              const response = await imports.httpRequest({
+                method: 'GET',
+                url: manifestUrl,
+                headers: { accept: 'application/json' }
+              });
+              const status = typeof response?.status === 'number' ? response.status : null;
+              if (status !== null && status >= 200 && status < 300) {
+                const body = response?.body ?? null;
+                if (typeof body === 'string') {
+                  text = body;
+                } else if (body && typeof body === 'object') {
+                  decoded = body;
+                } else {
+                  warnings.push(`Manifest ${manifestUrl} returned an unexpected body shape`);
+                }
+              } else {
+                warnings.push(
+                  status !== null
+                    ? `Failed to download manifest from ${manifestUrl} (status ${status})`
+                    : `Failed to download manifest from ${manifestUrl}`
+                );
+              }
+            } catch (error) {
+              warnings.push(`HTTP error fetching manifest ${manifestUrl}: ${error?.message || error}`);
+            }
+          }
+
+          if (!text && !decoded && manifestPath) {
+            let absolute = null;
+            if (manifestPath.startsWith('/')) {
+              absolute = manifestPath;
+            } else {
+              for (const base of bases) {
+                try {
+                  const joined = await imports.pathJoin({ base, segment: manifestPath });
+                  const candidate = joined?.path || joined;
+                  absolute = candidate;
+                  break;
+                } catch (_) {
+                  // ignore join errors
+                }
+              }
+            }
+
+            if (!absolute) {
+              warnings.push(`Unable to resolve manifest path ${manifestPath}`);
+            } else {
+              try {
+                const read = await imports.fsReadFile({ path: absolute, encoding: 'utf-8' });
+                text = read?.data ?? null;
+              } catch (err) {
+                warnings.push(`Failed to read manifest ${absolute}: ${err?.message || err}`);
+              }
+            }
+          }
+
+          if (typeof text !== 'string' && !decoded) {
+            if (!manifestUrl && !manifestPath) {
+              warnings.push('Manifest location missing (no URL or path provided)');
+            } else {
+              const location = manifestUrl || manifestPath;
+              warnings.push(`Manifest ${location} returned no text`);
+            }
+            return { records: [], warnings };
+          }
+
+          let parsed = null;
+          if (decoded && typeof decoded === 'object') {
+            parsed = decoded;
+          } else {
+            try {
+              parsed = JSON.parse(text);
+            } catch (err) {
+              const location = manifestUrl || manifestPath || '<inline>';
+              warnings.push(`Failed to parse manifest ${location}: ${err?.message || err}`);
+              return { records: [], warnings };
+            }
+          }
+
+          if (Array.isArray(parsed)) {
+            return { records: parsed, warnings };
+          }
+
+          const location = manifestUrl || manifestPath || '<inline>';
+          warnings.push(`Manifest ${location} is not an array`);
+          return { records: [], warnings };
+        }
+      input:
+        metadata: $.metadata
+      repoRoots: $.repoRoots
+      repoRoot: $.repoRoot
+      specRoot: $.specRoot
+      ragRoot: $.ragRoot
+      projectPath: $.projectPath
+      manifestPath: $.manifestPath
+      manifestUrl: $.manifestUrl
+      imports:
+        pathJoin: lcod://axiom/path/join@1
+        fsReadFile: lcod://contract/core/fs/read-file@1
+        httpRequest: lcod://contract/core/http/request@1
+    out:
+      records: records
+      warnings: warnings

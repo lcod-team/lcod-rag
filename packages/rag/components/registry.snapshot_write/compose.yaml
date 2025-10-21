@@ -1,25 +1,40 @@
 compose:
-  - call: lcod://tooling/value/default_object@0.1.0
-    in:
-      value: $.snapshot
-    out:
-      snapshotObject: resolved
-
   - call: lcod://tooling/script@1
     in:
       source: |
-        async ({ state }) => {
-          const json = JSON.stringify(state.snapshotObject || {}, null, 2) + '\n';
-          return { json };
+        async ({ state }, { imports }) => {
+          const snapshot = state.snapshot && typeof state.snapshot === 'object' && !Array.isArray(state.snapshot)
+            ? state.snapshot
+            : {};
+          const path = typeof state.path === 'string' && state.path.length > 0 ? state.path : null;
+          if (!path) {
+            throw new Error('registry.snapshot_write: path is required');
+          }
+
+          const json = JSON.stringify(snapshot, null, 2) + '\n';
+          let existing = null;
+          try {
+            const result = await imports.fsReadFile({ path, encoding: 'utf-8' });
+            if (result && typeof result.data === 'string') {
+              existing = result.data;
+            }
+          } catch (_error) {
+            existing = null;
+          }
+
+          if (existing !== json) {
+            await imports.fsWriteFile({ path, content: json, encoding: 'utf-8' });
+            return { changed: true, snapshotPath: path };
+          }
+
+          return { changed: false, snapshotPath: path };
         }
       input:
-        snapshotObject: $.snapshotObject
-    out:
-      json: json
-
-  - call: lcod://tooling/fs/write_if_changed@0.1.0
-    in:
-      path: $.path
-      content: $.json
+        snapshot: $.snapshot
+        path: $.path
+      imports:
+        fsReadFile: lcod://contract/core/fs/read-file@1
+        fsWriteFile: lcod://contract/core/fs/write-file@1
     out:
       changed: changed
+      snapshotPath: snapshotPath

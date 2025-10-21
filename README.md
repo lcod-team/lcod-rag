@@ -66,6 +66,23 @@ requirements.txt  # Python dependencies for both API and ingestion CLI
         -d '{"query": "What is the resolver responsible for?"}'
    ```
 
+## Registry snapshot powered by `lcod-run`
+
+The RAG ingestion pipeline ships LCOD components that can be executed directly
+with the standalone `lcod-run` binary (Rust). Once the repository is cloned, the
+registry snapshot can be refreshed without extra configuration:
+
+```bash
+lcod-run --compose packages/rag/components/registry.refresh_snapshot/compose.yaml
+```
+
+The compose downloads the official LCOD catalogues, resolves the components, and
+updates `data/registry.snapshot.json` only when the content changes. When a
+different catalogue pointer or snapshot location is required, provide overrides
+through the compose state (see component READMEs for the available fields).
+Standard `lcod-run` flags (`--log-level`, `--timeout`, `--global-cache`, …) remain
+available for advanced scenarios.
+
 ## Deploying on `nucone.local`
 
 The server already runs the required dependencies:

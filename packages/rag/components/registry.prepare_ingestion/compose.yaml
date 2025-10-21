@@ -3,23 +3,84 @@ compose:
     in:
       source: |
         async ({ state }, { imports }) => {
-          const result = await imports.pathJoin({
-            base: state.ragRoot,
-            segment: 'packages/rag/components/registry.register_helpers/compose.yaml'
-          });
-          const composePath = result?.path || result;
+          const ensureString = (value) => (typeof value === 'string' && value.length > 0 ? value : null);
+          const joinRelative = async (baseDir, segment) => {
+            const resolvedBase = ensureString(baseDir) || '.';
+            try {
+              const joined = await imports.pathJoin({ base: resolvedBase, segment });
+              return joined?.path || joined || segment;
+            } catch (_) {
+              return segment;
+            }
+          };
+
+          const projectBase = ensureString(state.projectPath) || ensureString(state.cwd) || '.';
+          const ragRoot =
+            ensureString(state.ragRoot) ||
+            await joinRelative(projectBase, 'packages/rag');
+          const base = ensureString(ragRoot) || projectBase;
+
+          let composePath = null;
+          try {
+            const result = await imports.pathJoin({
+              base,
+              segment: 'components/registry.register_helpers/compose.yaml'
+            });
+            composePath = result?.path || result || null;
+          } catch (_) {
+            composePath = null;
+          }
+
+          const helperRegistration = composePath
+            ? [{ id: 'lcod://rag/registry/register_helpers@0.1.0', composePath }]
+            : [];
+
+          const snapshotPath =
+            ensureString(state.snapshotPath) ||
+            await joinRelative(base, 'data/registry.snapshot.json');
+
+          const cacheDir =
+            ensureString(state.cacheDir) ||
+            await joinRelative(base, '.lcod/cache');
+
+          const cataloguesUrl =
+            ensureString(state.cataloguesUrl) ||
+            'https://raw.githubusercontent.com/lcod-team/lcod-registry/main/catalogues.json';
+
+          const cataloguesPath = ensureString(state.cataloguesPath) || null;
+          const projectPath = ensureString(state.projectPath) || projectBase;
+          const cwd = ensureString(state.cwd) || projectPath;
+
           return {
-            helperRegistration: composePath
-              ? [{ id: 'lcod://rag/registry/register_helpers@0.1.0', composePath }]
-              : []
+            helperRegistration,
+            effectiveRagRoot: base,
+            effectiveSnapshotPath: snapshotPath,
+            effectiveCacheDir: cacheDir,
+            effectiveCataloguesUrl: cataloguesUrl,
+            effectiveCataloguesPath: cataloguesPath,
+            effectiveProjectPath: projectPath,
+            effectiveCwd: cwd
           };
         }
       input:
         ragRoot: $.ragRoot
+        projectPath: $.projectPath
+        cwd: $.cwd
+        snapshotPath: $.snapshotPath
+        cacheDir: $.cacheDir
+        cataloguesUrl: $.cataloguesUrl
+        cataloguesPath: $.cataloguesPath
       imports:
         pathJoin: lcod://axiom/path/join@1
     out:
       helperRegistration: helperRegistration
+      ragRootResolved: effectiveRagRoot
+      snapshotPathResolved: effectiveSnapshotPath
+      cacheDirResolved: effectiveCacheDir
+      cataloguesUrlResolved: effectiveCataloguesUrl
+      cataloguesPathResolved: effectiveCataloguesPath
+      projectPathResolved: effectiveProjectPath
+      cwdResolved: effectiveCwd
 
   - call: lcod://tooling/resolver/register@1
     in:
@@ -30,14 +91,14 @@ compose:
 
   - call: lcod://rag/registry/register_helpers@0.1.0
     in:
-      ragRoot: $.ragRoot
+      ragRoot: $.ragRootResolved
     out:
       helperRegistered: registered
       helperWarnings: helperWarnings
 
   - call: lcod://rag/registry/snapshot_read@0.1.0
     in:
-      path: $.snapshotPath
+      path: $.snapshotPathResolved
       warningMessage: $.missingSnapshotWarning
     out:
       snapshot: previousSnapshot
@@ -46,16 +107,20 @@ compose:
 
   - call: lcod://rag/registry/collect_components@0.1.0
     in:
-      projectPath: $.projectPath
-      cataloguesPath: $.cataloguesPath
+      projectPath: $.projectPathResolved
+      cataloguesPath: $.cataloguesPathResolved
+      cataloguesUrl: $.cataloguesUrlResolved
       sourceId: $.sourceId
-      cacheDir: $.cacheDir
-      cwd: $.cwd
+      cacheDir: $.cacheDirResolved
+      cwd: $.cwdResolved
       specRoot: $.specRoot
-      ragRoot: $.ragRoot
+      ragRoot: $.ragRootResolved
+      repoRoots: $.repoRoots
     out:
       components: components
       warnings: collectWarnings
+      componentCount: componentCount
+      cataloguesCount: cataloguesCount
 
   - call: lcod://rag/registry/snapshot_from_components@0.1.0
     in:
@@ -119,6 +184,12 @@ compose:
     out:
       warnings: items
 
+  - call: lcod://rag/array/compact@0.1.0
+    in:
+      items: $.warnings
+    out:
+      warnings: values
+
   - call: lcod://impl/set@1
     in:
       components: $.components
@@ -131,6 +202,10 @@ compose:
         unchanged: $.unchanged
       previousExists: $.previousExists
       warnings: $.warnings
+      componentCount: $.componentCount
+      cataloguesCount: $.cataloguesCount
+      snapshotPath: $.snapshotPathResolved
+      cacheDir: $.cacheDirResolved
     out:
       components: components
       snapshot: snapshot
@@ -138,3 +213,7 @@ compose:
       diff: diff
       previousExists: previousExists
       warnings: warnings
+      componentCount: componentCount
+      cataloguesCount: cataloguesCount
+      snapshotPath: snapshotPath
+      cacheDir: cacheDir
