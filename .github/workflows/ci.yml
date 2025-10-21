@@ -10,7 +10,7 @@ jobs:
   test-registry-ingestion:
     runs-on: ubuntu-latest
     env:
-      LCOD_RUN_VERSION: v0.1.6
+      LCOD_RUN_VERSION: lcod-run-v0.1.9
     steps:
       - name: Checkout lcod-rag
         uses: actions/checkout@v4
