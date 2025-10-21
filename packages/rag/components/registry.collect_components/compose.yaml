@@ -45,7 +45,7 @@ compose:
       specRoot: specRoot
       ragRoot: ragRoot
 
-  # Register spec helpers (tooling/value, registry_sources, etc.)
+  # Register spec helpers (tooling/value, registry_sources, fs, etc.)
   - call: lcod://tooling/script@1
     in:
       source: |
@@ -63,6 +63,11 @@ compose:
             { id: 'lcod://tooling/array/append@0.1.0', path: 'tooling/array/append/compose.yaml' },
             { id: 'lcod://tooling/array/compact@0.1.0', path: 'tooling/array/compact/compose.yaml' },
             { id: 'lcod://tooling/array/concat@0.1.0', path: 'tooling/array/concat/compose.yaml' },
+            { id: 'lcod://tooling/object/has@0.1.0', path: 'tooling/object/has/compose.yaml' },
+            { id: 'lcod://tooling/object/set@0.1.0', path: 'tooling/object/set/compose.yaml' },
+            { id: 'lcod://tooling/json/stable_stringify@0.1.0', path: 'tooling/json/stable_stringify/compose.yaml' },
+            { id: 'lcod://tooling/hash/to_key@0.1.0', path: 'tooling/hash/to_key/compose.yaml' },
+            { id: 'lcod://tooling/fs/read_optional@0.1.0', path: 'tooling/fs/read_optional/compose.yaml' },
             { id: 'lcod://tooling/registry_sources/prepare_env@0.1.0', path: 'tooling/registry_sources/prepare_env/compose.yaml' },
             { id: 'lcod://tooling/registry_sources/load_config@0.1.0', path: 'tooling/registry_sources/load_config/compose.yaml' },
             { id: 'lcod://tooling/registry_sources/collect_entries@0.1.0', path: 'tooling/registry_sources/collect_entries/compose.yaml' },
@@ -72,7 +77,8 @@ compose:
             { id: 'lcod://tooling/registry_sources/partition_normalized@0.1.0', path: 'tooling/registry_sources/partition_normalized/compose.yaml' },
             { id: 'lcod://tooling/registry_sources/process_catalogue@0.1.0', path: 'tooling/registry_sources/process_catalogue/compose.yaml' },
             { id: 'lcod://tooling/registry_sources/process_pointer@0.1.0', path: 'tooling/registry_sources/process_pointer/compose.yaml' },
-            { id: 'lcod://tooling/registry_sources/resolve@0.1.0', path: 'tooling/registry_sources/resolve/compose.yaml' }
+            { id: 'lcod://tooling/registry_sources/resolve@0.1.0', path: 'tooling/registry_sources/resolve/compose.yaml' },
+            { id: 'lcod://core/string/format@0.1.0', path: 'core/string/format/compose.yaml' }
           ];
           const components = await Promise.all(definitions.map(async (def) => ({
             id: def.id,
