@@ -1,4 +1,43 @@
+schemaVersion = "2.0"
 id = "lcod://rag/jsonl/parse_objects@0.1.0"
-name = "jsonl.parse_objects"
 version = "0.1.0"
 kind = "component"
+summary = "Parse newline-delimited JSON text into objects."
+
+[palette]
+category = "RAG"
+icon = "mdi:file-code"
+tags = ["jsonl", "parse", "rag"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "text"
+summary = "String containing JSON Lines data."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.output]]
+name = "items"
+summary = "Array of parsed objects extracted from the JSONL payload."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "object" }
+}
+"""
+
+[[io.output]]
+name = "warnings"
+summary = "Non-fatal parsing warnings for malformed lines."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "string" }
+}
+"""

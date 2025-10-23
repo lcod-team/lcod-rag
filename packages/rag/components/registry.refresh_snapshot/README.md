@@ -19,10 +19,12 @@ Inputs (all optional unless noted):
 
 Outputs:
 
+- `components` — component list returned by `registry.prepare_ingestion`.
 - `snapshot` / `snapshotEntries` — values returned by
   `registry.prepare_ingestion`.
 - `diff` — `{ added, removed, updated, unchanged }` entries relative to the
   previous snapshot.
+- `previousExists` — boolean indicating whether a snapshot file was previously present.
 - `componentCount`, `cataloguesCount` — summary counts for quick reporting.
 - `snapshotPath` — resolved path passed to `snapshot_write`.
 - `snapshotWritten` — boolean indicating whether the file changed on disk.

@@ -24,13 +24,15 @@ compose:
           segment: "components/registry.snapshot_read/compose.yaml"
         - id: "lcod://rag/registry/snapshot_write@0.1.0"
           segment: "components/registry.snapshot_write/compose.yaml"
+        - id: "lcod://rag/registry/fetch_component_docs@0.1.0"
+          segment: "components/registry.fetch_component_docs/compose.yaml"
     out:
       registrations: registrations
 
   - call: lcod://flow/foreach@1
     in:
       list: $.registrations
-    children:
+    slots:
       body:
         - call: lcod://axiom/path/join@1
           in:

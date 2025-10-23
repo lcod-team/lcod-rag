@@ -14,10 +14,11 @@ Inputs (all optional):
 - `cwd` — working directory forwarded to helper calls (defaults to `projectPath`).
 - `specRoot` — optional path to a local `lcod-spec` checkout (only used when dereferencing relative manifest paths).
 - `ragRoot` — path to the `lcod-rag` checkout (used to register helper components).
+- `repoRoots` — map of repository URLs to local checkouts for fetching documentation assets.
 
 Outputs:
 
 - `components` — array of normalised entries `{ componentId, version, registryId, priority, sha256, manifest, manifestPath, manifestUrl }`.
-- `warnings` — array of warning strings raised while registering helper components, resolving catalogues, or normalising entries.
+- `warnings` — array of warning strings raised while registering helper components, resolving catalogues, normalising entries, or fetching documentation.
 - `componentCount` — number of components extracted across all catalogues.
 - `cataloguesCount` — number of catalogue manifests successfully processed.

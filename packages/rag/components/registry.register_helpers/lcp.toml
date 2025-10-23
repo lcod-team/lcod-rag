@@ -1,12 +1,42 @@
+schemaVersion = "2.0"
 id = "lcod://rag/registry/register_helpers@0.1.0"
-name = "registry.register_helpers"
 version = "0.1.0"
 kind = "component"
+summary = "Register lcod-rag helper components in the resolver registry."
 
-[deps]
-requires = [
-  "lcod://axiom/path/join@1",
-  "lcod://flow/foreach@1",
-  "lcod://impl/set@1",
-  "lcod://tooling/resolver/register@1"
-]
+[palette]
+category = "RAG"
+icon = "mdi:account-network"
+tags = ["registry", "helpers", "rag"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "ragRoot"
+summary = "Path to the lcod-rag workspace used to resolve helper composes."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.output]]
+name = "helperRegistered"
+summary = "Number of helper components registered."
+schema = """
+{
+  "type": "integer"
+}
+"""
+
+[[io.output]]
+name = "helperWarnings"
+summary = "Warnings emitted while registering the helpers."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "string" }
+}
+"""

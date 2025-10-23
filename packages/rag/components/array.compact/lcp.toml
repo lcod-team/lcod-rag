@@ -1,4 +1,35 @@
+schemaVersion = "2.0"
 id = "lcod://rag/array/compact@0.1.0"
-name = "array.compact"
 version = "0.1.0"
 kind = "component"
+summary = "Remove null and undefined entries from an array."
+
+[palette]
+category = "RAG"
+icon = "mdi:filter-variant"
+tags = ["array", "cleanup", "rag"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "items"
+summary = "Array to compact by removing nullish values."
+required = false
+schema = """
+{
+  "type": ["array", "null"],
+  "items": {},
+  "description": "Source array whose null or undefined entries should be filtered out."
+}
+"""
+
+[[io.output]]
+name = "values"
+summary = "Array containing only the non-null elements from the source."
+schema = """
+{
+  "type": "array",
+  "items": {}
+}
+"""

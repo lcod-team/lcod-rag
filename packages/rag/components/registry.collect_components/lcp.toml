@@ -1,4 +1,142 @@
+schemaVersion = "2.0"
 id = "lcod://rag/registry/collect_components@0.1.0"
-name = "registry.collect_components"
 version = "0.1.0"
 kind = "component"
+summary = "Resolve catalogue manifests and return normalised component entries ready for ingestion."
+
+[palette]
+category = "RAG"
+icon = "mdi:book-search"
+tags = ["registry", "collect", "rag"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "projectPath"
+summary = "Base directory used to resolve relative catalogue paths."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "cataloguesUrl"
+summary = "HTTP(S) URL of the registry pointer (catalogues.json)."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "cataloguesPath"
+summary = "Local override for the registry pointer file."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "sourceId"
+summary = "Identifier applied to the synthetic registry source."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "cacheDir"
+summary = "Directory used to cache downloaded catalogues."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "cwd"
+summary = "Working directory forwarded to helper calls."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "specRoot"
+summary = "Path to a local lcod-spec checkout for relative manifest resolution."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "ragRoot"
+summary = "Path to the lcod-rag workspace used to register helper components."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "repoRoots"
+summary = "Mapping of repository identifiers to local checkouts."
+required = false
+schema = """
+{
+  "type": ["object", "null"],
+  "additionalProperties": { "type": "string" }
+}
+"""
+
+[[io.output]]
+name = "components"
+summary = "Normalised component descriptors extracted from all catalogues."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "object" }
+}
+"""
+
+[[io.output]]
+name = "warnings"
+summary = "Warnings raised while resolving catalogues or fetching documentation."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "string" }
+}
+"""
+
+[[io.output]]
+name = "componentCount"
+summary = "Total number of components discovered."
+schema = """
+{
+  "type": "integer"
+}
+"""
+
+[[io.output]]
+name = "cataloguesCount"
+summary = "Number of catalogue manifests processed successfully."
+schema = """
+{
+  "type": "integer"
+}
+"""

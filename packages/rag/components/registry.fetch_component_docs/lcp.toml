@@ -1,0 +1,44 @@
+schemaVersion = "2.0"
+id = "lcod://rag/registry/fetch_component_docs@0.1.0"
+version = "0.1.0"
+kind = "component"
+summary = "Download documentation artefacts (README) for a resolved registry component."
+
+[palette]
+category = "RAG"
+icon = "mdi:file-download"
+tags = ["registry", "docs", "rag"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "component"
+summary = "Normalised component descriptor including source metadata."
+required = false
+schema = """
+{
+  "type": ["object", "null"],
+  "additionalProperties": true
+}
+"""
+
+[[io.output]]
+name = "component"
+summary = "Component descriptor enriched with fetched documentation payloads."
+schema = """
+{
+  "type": ["object", "null"],
+  "additionalProperties": true
+}
+"""
+
+[[io.output]]
+name = "warnings"
+summary = "Warnings raised while downloading documentation assets."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "string" }
+}
+"""

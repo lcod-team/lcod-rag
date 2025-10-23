@@ -1,4 +1,52 @@
+schemaVersion = "2.0"
 id = "lcod://rag/registry/snapshot_write@0.1.0"
-name = "registry.snapshot_write"
 version = "0.1.0"
 kind = "component"
+summary = "Persist a registry snapshot to disk when the payload has changed."
+
+[palette]
+category = "RAG"
+icon = "mdi:content-save"
+tags = ["registry", "snapshot", "rag"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "snapshot"
+summary = "Snapshot object to serialise."
+required = false
+schema = """
+{
+  "type": ["object", "null"],
+  "additionalProperties": true
+}
+"""
+
+[[io.input]]
+name = "path"
+summary = "Destination file path for the snapshot JSON."
+required = true
+schema = """
+{
+  "type": "string"
+}
+"""
+
+[[io.output]]
+name = "changed"
+summary = "Indicates whether the snapshot file was rewritten."
+schema = """
+{
+  "type": "boolean"
+}
+"""
+
+[[io.output]]
+name = "snapshotPath"
+summary = "Absolute path of the snapshot file."
+schema = """
+{
+  "type": "string"
+}
+"""

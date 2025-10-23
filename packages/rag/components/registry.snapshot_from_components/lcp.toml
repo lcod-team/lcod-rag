@@ -1,4 +1,44 @@
+schemaVersion = "2.0"
 id = "lcod://rag/registry/snapshot_from_components@0.1.0"
-name = "registry.snapshot_from_components"
 version = "0.1.0"
 kind = "component"
+summary = "Build a registry snapshot map from a list of normalised components."
+
+[palette]
+category = "RAG"
+icon = "mdi:clipboard-list"
+tags = ["registry", "snapshot", "rag"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "components"
+summary = "Array of normalised component descriptors."
+required = false
+schema = """
+{
+  "type": ["array", "null"],
+  "items": { "type": "object" }
+}
+"""
+
+[[io.output]]
+name = "snapshot"
+summary = "Snapshot object keyed by component id and version."
+schema = """
+{
+  "type": "object",
+  "additionalProperties": { "type": "object" }
+}
+"""
+
+[[io.output]]
+name = "entries"
+summary = "Sorted list of snapshot entries with metadata."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "object" }
+}
+"""

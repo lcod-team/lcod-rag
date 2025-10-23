@@ -175,7 +175,7 @@ compose:
   - call: lcod://flow/foreach@1
     in:
       list: $.cataloguesList
-    children:
+    slots:
       body:
         - call: lcod://tooling/value/default_object@0.1.0
           in:
@@ -200,6 +200,11 @@ compose:
                 const sourceRepo = ensureString(metadata.sourceRepo);
                 const commit = ensureString(metadata.commit) || ensureString(catalogue.commit);
 
+                const metadataExtended = { ...metadata };
+                if (commit) {
+                  metadataExtended.commit = commit;
+                }
+
                 if (!manifestPath && !manifestUrl) {
                   warnings.push(`catalogue ${registryId} is missing manifest reference`);
                 }
@@ -213,7 +218,7 @@ compose:
                     sourceRepo: sourceRepo || null,
                     description: ensureString(catalogue.description) || null,
                     commit,
-                    metadata
+                    metadata: metadataExtended
                   },
                   warnings
                 };
@@ -263,7 +268,7 @@ compose:
         - call: lcod://flow/foreach@1
           in:
             list: $.manifestRecordsList
-          children:
+          slots:
             body:
               - call: lcod://tooling/value/default_object@0.1.0
                 in:
@@ -351,6 +356,59 @@ compose:
     out:
       components: values
 
+  - call: lcod://flow/foreach@1
+    in:
+      list: $.components
+    slots:
+      body:
+        - call: lcod://rag/registry/fetch_component_docs@0.1.0
+          in:
+            component: $slot.item
+          out:
+            enrichedComponent: component
+            docWarnings: warnings
+        - call: lcod://tooling/value/default_array@0.1.0
+          in:
+            value: $.docWarnings
+          out:
+            docWarningsList: resolved
+        - call: lcod://impl/set@1
+          in:
+            entry:
+              component: $.enrichedComponent
+              warnings: $.docWarningsList
+          out:
+            entry: entry
+    collectPath: $.entry
+    out:
+      docResults: results
+
+  - call: lcod://rag/array/pluck@0.1.0
+    in:
+      items: $.docResults
+      field: 'component'
+    out:
+      components: values
+
+  - call: lcod://rag/array/pluck@0.1.0
+    in:
+      items: $.docResults
+      field: 'warnings'
+    out:
+      docWarningsNested: values
+
+  - call: lcod://rag/array/flatten@0.1.0
+    in:
+      items: $.docWarningsNested
+    out:
+      docWarnings: values
+
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.docWarnings
+    out:
+      docWarningsList: resolved
+
   - call: lcod://rag/array/pluck@0.1.0
     in:
       items: $.perCatalogueResults
@@ -374,6 +432,13 @@ compose:
     in:
       items: $.accumulatedWarnings
       values: $.perCatalogueWarningsList
+    out:
+      warnings: items
+
+  - call: lcod://tooling/array/append@0.1.0
+    in:
+      items: $.warnings
+      values: $.docWarningsList
     out:
       warnings: items
 

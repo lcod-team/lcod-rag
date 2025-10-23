@@ -1,4 +1,83 @@
+schemaVersion = "2.0"
 id = "lcod://rag/registry/diff_snapshots@0.1.0"
-name = "registry.diff_snapshots"
 version = "0.1.0"
 kind = "component"
+summary = "Compare two registry snapshots and categorise added, removed, updated and unchanged components."
+
+[palette]
+category = "RAG"
+icon = "mdi:timeline-check"
+tags = ["registry", "diff", "rag"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "previous"
+summary = "Snapshot object captured before the refresh."
+required = false
+schema = """
+{
+  "type": ["object", "null"],
+  "additionalProperties": { "type": "object" }
+}
+"""
+
+[[io.input]]
+name = "current"
+summary = "Snapshot object generated from the latest catalogue scan."
+required = false
+schema = """
+{
+  "type": ["object", "null"],
+  "additionalProperties": { "type": "object" }
+}
+"""
+
+[[io.output]]
+name = "added"
+summary = "Components present in the current snapshot but missing from the previous one."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "object" }
+}
+"""
+
+[[io.output]]
+name = "removed"
+summary = "Components that disappeared from the snapshot."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "object" }
+}
+"""
+
+[[io.output]]
+name = "updated"
+summary = "Components whose manifest or checksum changed."
+schema = """
+{
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "previous": { "type": "object" },
+      "current": { "type": "object" }
+    },
+    "required": ["previous", "current"],
+    "additionalProperties": true
+  }
+}
+"""
+
+[[io.output]]
+name = "unchanged"
+summary = "Components identical between both snapshots."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "object" }
+}
+"""

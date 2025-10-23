@@ -1,0 +1,113 @@
+compose:
+  - call: lcod://tooling/value/default_object@0.1.0
+    in:
+      value: $.component
+    out:
+      componentObject: resolved
+
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }, { ctx }) => {
+          const warnings = [];
+          const component = state.component && typeof state.component === 'object' && !Array.isArray(state.component)
+            ? { ...state.component }
+            : null;
+          if (!component) {
+            return { component: null, warnings: ['registry.fetch_component_docs: invalid component input'] };
+          }
+
+          const ensureString = (value) => (typeof value === 'string' && value.length > 0 ? value : null);
+
+          const sourceMetadata = component.sourceMetadata && typeof component.sourceMetadata === 'object' && !Array.isArray(component.sourceMetadata)
+            ? component.sourceMetadata
+            : {};
+          const composePath = ensureString(component.composePath);
+          const manifestPath = ensureString(component.manifest);
+          const sourceRepo = ensureString(component.sourceRepo)
+            || ensureString(sourceMetadata.sourceRepo)
+            || ensureString(sourceMetadata.metadata && sourceMetadata.metadata.sourceRepo);
+          const commit = ensureString(sourceMetadata.commit)
+            || ensureString(sourceMetadata.metadata && sourceMetadata.metadata.commit);
+
+          if (!sourceRepo) {
+            warnings.push('registry.fetch_component_docs: missing sourceRepo');
+            return { component, warnings };
+          }
+
+          if (!commit) {
+            warnings.push(`registry.fetch_component_docs: missing commit for ${sourceRepo}`);
+            return { component, warnings };
+          }
+
+          const repoMatch = sourceRepo.match(/^https?:\/\/github\.com\/(.+?)\/(.+?)(?:\.git)?$/i);
+          if (!repoMatch) {
+            warnings.push(`registry.fetch_component_docs: unsupported repository host ${sourceRepo}`);
+            return { component, warnings };
+          }
+
+          const owner = repoMatch[1];
+          const repo = repoMatch[2];
+          const rawBase = `https://raw.githubusercontent.com/${owner}/${repo}/${commit}/`;
+
+          const pickDirectory = (path) => {
+            if (!path) return '';
+            const segments = path.split('/');
+            segments.pop();
+            return segments.length ? segments.join('/') + '/' : '';
+          };
+
+          const directory = pickDirectory(composePath || manifestPath);
+          const candidates = [
+            { key: 'readme', path: `${directory}README.md` }
+          ];
+
+          const documentation = {};
+
+          for (const candidate of candidates) {
+            const url = rawBase + candidate.path;
+            try {
+              const response = await ctx.call('lcod://core/http/request@1', {
+                method: 'GET',
+                url,
+                headers: { accept: 'text/plain' }
+              });
+              const status = typeof response?.status === 'number' ? response.status : null;
+              if (status && status >= 200 && status < 300) {
+                if (typeof response?.body === 'string' && response.body.length > 0) {
+                  documentation[candidate.key] = {
+                    url,
+                    content: response.body,
+                    encoding: response?.bodyEncoding ?? null
+                  };
+                  warnings.push(`registry.fetch_component_docs: fetched ${candidate.path} (${response.body.length} bytes, encoding ${response?.bodyEncoding ?? 'unknown'})`);
+                } else {
+                  documentation[candidate.key] = { bodyType: typeof response?.body, encoding: response?.bodyEncoding ?? null };
+                  warnings.push(`registry.fetch_component_docs: unexpected body type for ${candidate.path} (type ${typeof response?.body}, encoding ${response?.bodyEncoding ?? 'unknown'})`);
+                }
+              } else {
+                warnings.push(`registry.fetch_component_docs: unable to fetch ${candidate.path} (status ${status ?? 'unknown'})`);
+              }
+            } catch (error) {
+              warnings.push(`registry.fetch_component_docs: HTTP error fetching ${candidate.path}: ${error?.message || error}`);
+            }
+          }
+
+          const existingDoc = typeof component.documentation === 'object' && component.documentation !== null
+            ? component.documentation
+            : {};
+
+          component.documentation = {
+            ...existingDoc,
+            repo: sourceRepo,
+            commit,
+            ...documentation
+          };
+
+          return { component, warnings };
+        }
+      input:
+        component: $.componentObject
+    out:
+      component: component
+      warnings: warnings

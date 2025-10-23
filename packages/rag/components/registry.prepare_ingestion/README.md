@@ -13,11 +13,12 @@ Inputs (all optional unless noted):
 - `sourceId` — forwarded to `registry.collect_components`.
 - `specRoot` — optional path to a local `lcod-spec` checkout (only used when reading manifests from disk).
 - `snapshotPath` — file used to persist the registry snapshot (defaults to `<ragRoot>/data/registry.snapshot.json`).
+- `repoRoots` — mapping of repository URLs to local mirrors for documentation fetching.
 - `missingSnapshotWarning` — warning emitted when the snapshot is absent.
 
 Outputs:
 
-- `components` — normalized component list from the registry.
+- `components` — normalized component list enriched with inline documentation when available.
 - `snapshot` / `snapshotEntries` — structures produced by `registry.snapshot_from_components`.
 - `diff` — `{ added, removed, updated, unchanged }` from `registry.diff_snapshots`.
 - `previousExists` — boolean indicating whether a snapshot was previously stored.

@@ -1,4 +1,62 @@
+schemaVersion = "2.0"
 id = "lcod://rag/registry/snapshot_read@0.1.0"
-name = "registry.snapshot_read"
 version = "0.1.0"
 kind = "component"
+summary = "Read and validate a persisted registry snapshot JSON file."
+
+[palette]
+category = "RAG"
+icon = "mdi:folder-open"
+tags = ["registry", "snapshot", "rag"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "path"
+summary = "Filesystem path to the snapshot JSON file."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "warningMessage"
+summary = "Optional warning returned when the snapshot is missing."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.output]]
+name = "snapshot"
+summary = "Snapshot object parsed from disk (empty object when missing or invalid)."
+schema = """
+{
+  "type": "object",
+  "additionalProperties": true
+}
+"""
+
+[[io.output]]
+name = "warnings"
+summary = "Warnings encountered while reading or decoding the snapshot."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "string" }
+}
+"""
+
+[[io.output]]
+name = "exists"
+summary = "Indicates whether the snapshot file was present."
+schema = """
+{
+  "type": "boolean"
+}
+"""

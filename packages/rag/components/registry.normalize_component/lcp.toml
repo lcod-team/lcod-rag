@@ -1,4 +1,55 @@
+schemaVersion = "2.0"
 id = "lcod://rag/registry/normalize_component@0.1.0"
-name = "registry.normalize_component"
 version = "0.1.0"
 kind = "component"
+summary = "Normalise raw manifest records into registry component descriptors."
+
+[palette]
+category = "RAG"
+icon = "mdi:clipboard-text"
+tags = ["registry", "normalize", "rag"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "record"
+summary = "Manifest record describing a component implementation."
+required = false
+schema = """
+{
+  "type": ["object", "null"],
+  "additionalProperties": true
+}
+"""
+
+[[io.input]]
+name = "source"
+summary = "Metadata about the catalogue that produced the record."
+required = false
+schema = """
+{
+  "type": ["object", "null"],
+  "additionalProperties": true
+}
+"""
+
+[[io.output]]
+name = "component"
+summary = "Normalised component entry with manifest pointers and provenance."
+schema = """
+{
+  "type": ["object", "null"],
+  "additionalProperties": true
+}
+"""
+
+[[io.output]]
+name = "warnings"
+summary = "Warnings emitted during normalisation (missing ids, manifests, etc.)."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "string" }
+}
+"""

@@ -1,6 +1,219 @@
-[component]
+schemaVersion = "2.0"
 id = "lcod://rag/registry/refresh_snapshot@0.1.0"
-name = "registry.refresh_snapshot"
 version = "0.1.0"
-summary = "Collect registry entries and update the local snapshot in a single compose."
-path = "compose.yaml"
+kind = "component"
+summary = "Refresh the local registry snapshot by collecting components and persisting the result."
+
+[palette]
+category = "RAG"
+icon = "mdi:database-refresh"
+tags = ["registry", "snapshot", "rag"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "projectPath"
+summary = "Project directory that hosts the ingestion workflow."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "cataloguesUrl"
+summary = "Remote registry pointer used during collection."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "cataloguesPath"
+summary = "Local override for the registry pointer file."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "sourceId"
+summary = "Identifier applied to the synthetic catalogue source."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "cacheDir"
+summary = "Cache directory for downloaded catalogue manifests."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "cwd"
+summary = "Working directory forwarded to helper components."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "specRoot"
+summary = "Optional local lcod-spec checkout."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "ragRoot"
+summary = "Location of the lcod-rag workspace."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "repoRoots"
+summary = "Mapping of repository URLs to local mirrors for documentation fetches."
+required = false
+schema = """
+{
+  "type": ["object", "null"],
+  "additionalProperties": { "type": "string" }
+}
+"""
+
+[[io.input]]
+name = "snapshotPath"
+summary = "Destination file for the registry snapshot."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "missingSnapshotWarning"
+summary = "Optional warning message when the previous snapshot is missing."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.output]]
+name = "components"
+summary = "Collected component entries."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "object" }
+}
+"""
+
+[[io.output]]
+name = "snapshot"
+summary = "Snapshot object generated from the components."
+schema = """
+{
+  "type": "object",
+  "additionalProperties": true
+}
+"""
+
+[[io.output]]
+name = "snapshotEntries"
+summary = "Flattened list of entries written to the snapshot."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "object" }
+}
+"""
+
+[[io.output]]
+name = "diff"
+summary = "Difference between previous and current snapshots."
+schema = """
+{
+  "type": "object",
+  "additionalProperties": true
+}
+"""
+
+[[io.output]]
+name = "previousExists"
+summary = "Boolean indicating whether a previous snapshot was found."
+schema = """
+{
+  "type": "boolean"
+}
+"""
+
+[[io.output]]
+name = "warnings"
+summary = "Warnings aggregated throughout the refresh."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "string" }
+}
+"""
+
+[[io.output]]
+name = "componentCount"
+summary = "Number of components discovered."
+schema = """
+{
+  "type": "integer"
+}
+"""
+
+[[io.output]]
+name = "cataloguesCount"
+summary = "Number of catalogues processed."
+schema = """
+{
+  "type": "integer"
+}
+"""
+
+[[io.output]]
+name = "snapshotPath"
+summary = "Path where the snapshot was written."
+schema = """
+{
+  "type": "string"
+}
+"""
+
+[[io.output]]
+name = "snapshotWritten"
+summary = "Boolean indicating whether the snapshot was persisted."
+schema = """
+{
+  "type": "boolean"
+}
+"""

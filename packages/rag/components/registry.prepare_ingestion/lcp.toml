@@ -1,4 +1,188 @@
+schemaVersion = "2.0"
 id = "lcod://rag/registry/prepare_ingestion@0.1.0"
-name = "registry.prepare_ingestion"
 version = "0.1.0"
 kind = "component"
+summary = "Register RAG helpers, collect catalogue components and produce ingestion metadata."
+
+[palette]
+category = "RAG"
+icon = "mdi:database-import"
+tags = ["registry", "ingestion", "rag"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "projectPath"
+summary = "Base directory of the project using the RAG helpers."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "ragRoot"
+summary = "Path to the lcod-rag workspace (used to resolve helper components)."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "snapshotPath"
+summary = "Location of the persisted registry snapshot file."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "cacheDir"
+summary = "Directory used to cache downloaded catalogue manifests."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "cataloguesUrl"
+summary = "Remote URL for the registry pointer (catalogues.json)."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "cataloguesPath"
+summary = "Local override for the registry pointer file."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "specRoot"
+summary = "Optional path to lcod-spec for resolver helpers."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "cwd"
+summary = "Working directory to forward to helper components."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "sourceId"
+summary = "Identifier assigned to the synthetic catalogue source."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "repoRoots"
+summary = "Mapping of repository URLs to local mirrors for documentation fetching."
+required = false
+schema = """
+{
+  "type": ["object", "null"],
+  "additionalProperties": { "type": "string" }
+}
+"""
+
+[[io.output]]
+name = "components"
+summary = "Normalised component entries extracted from all catalogues."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "object" }
+}
+"""
+
+[[io.output]]
+name = "snapshot"
+summary = "Snapshot object assembled from the collected components."
+schema = """
+{
+  "type": "object",
+  "additionalProperties": true
+}
+"""
+
+[[io.output]]
+name = "snapshotEntries"
+summary = "Flat list of snapshot entries derived from the components."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "object" }
+}
+"""
+
+[[io.output]]
+name = "diff"
+summary = "Difference between the previous snapshot and the freshly generated one."
+schema = """
+{
+  "type": "object",
+  "properties": {
+    "added": { "type": "array", "items": { "type": "object" } },
+    "removed": { "type": "array", "items": { "type": "object" } },
+    "updated": { "type": "array", "items": { "type": "object" } },
+    "unchanged": { "type": "array", "items": { "type": "object" } }
+  },
+  "additionalProperties": true
+}
+"""
+
+[[io.output]]
+name = "warnings"
+summary = "Aggregated warnings from resolver bootstrap, collection and documentation steps."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "string" }
+}
+"""
+
+[[io.output]]
+name = "componentCount"
+summary = "Number of components discovered in the catalogues."
+schema = """
+{
+  "type": "integer"
+}
+"""
+
+[[io.output]]
+name = "cataloguesCount"
+summary = "Number of catalogue manifests that were processed."
+schema = """
+{
+  "type": "integer"
+}
+"""

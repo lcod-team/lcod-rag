@@ -1,0 +1,44 @@
+schemaVersion = "2.0"
+id = "lcod://rag/array/pluck@0.1.0"
+version = "0.1.0"
+kind = "component"
+summary = "Extract a field from each object in an array."
+
+[palette]
+category = "RAG"
+icon = "mdi:format-list-bulleted"
+tags = ["array", "pluck", "rag"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "items"
+summary = "Array of objects to inspect."
+required = false
+schema = """
+{
+  "type": ["array", "null"],
+  "items": { "type": ["object", "null"] }
+}
+"""
+
+[[io.input]]
+name = "field"
+summary = "Object property name to extract."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.output]]
+name = "values"
+summary = "Array of extracted values (undefined when a property is missing)."
+schema = """
+{
+  "type": "array",
+  "items": {}
+}
+"""
