@@ -15,45 +15,65 @@ compose:
           };
 
           const projectBase = ensureString(state.projectPath) || ensureString(state.cwd) || '.';
-          const ragRoot =
+          const ragRootCandidate =
             ensureString(state.ragRoot) ||
             await joinRelative(projectBase, 'packages/rag');
-          const base = ensureString(ragRoot) || projectBase;
+          const isAbsolute = (value) => /^[a-zA-Z]:[\\/]/.test(value) || value?.startsWith('/');
+          const resolvePath = async (candidate, fallbackBase) => {
+            const value = ensureString(candidate);
+            if (!value) return null;
+            if (isAbsolute(value)) return value;
+            const baseCandidate = ensureString(fallbackBase) || '.';
+            let absoluteBase = baseCandidate;
+            if (!isAbsolute(baseCandidate)) {
+              try {
+                const joinedBase = await imports.pathJoin({ base: process.cwd(), segment: baseCandidate });
+                absoluteBase = joinedBase?.path || joinedBase || baseCandidate;
+              } catch (_) {
+                absoluteBase = baseCandidate;
+              }
+            }
+            try {
+              const joined = await imports.pathJoin({ base: absoluteBase, segment: value });
+              return joined?.path || joined || value;
+            } catch (_) {
+              return value;
+            }
+          };
+          const ragRoot = await resolvePath(ragRootCandidate, projectBase) || projectBase;
 
-          let composePath = null;
-          try {
-            const result = await imports.pathJoin({
-              base,
-              segment: 'components/registry.register_helpers/compose.yaml'
-            });
-            composePath = result?.path || result || null;
-          } catch (_) {
-            composePath = null;
-          }
+          const composePath = await resolvePath(
+            'components/registry.register_helpers/compose.yaml',
+            ragRoot
+          );
 
           const helperRegistration = composePath
             ? [{ id: 'lcod://rag/registry/register_helpers@0.1.0', composePath }]
             : [];
 
-          const snapshotPath =
+          const snapshotPath = await resolvePath(
             ensureString(state.snapshotPath) ||
-            await joinRelative(base, 'data/registry.snapshot.json');
+              await joinRelative(ragRoot, 'data/registry.snapshot.json'),
+            projectBase
+          );
 
-          const cacheDir =
+          const cacheDir = await resolvePath(
             ensureString(state.cacheDir) ||
-            await joinRelative(base, '.lcod/cache');
+              await joinRelative(ragRoot, '.lcod/cache'),
+            projectBase
+          );
 
           const cataloguesUrl =
             ensureString(state.cataloguesUrl) ||
             'https://raw.githubusercontent.com/lcod-team/lcod-registry/main/catalogues.json';
 
-          const cataloguesPath = ensureString(state.cataloguesPath) || null;
-          const projectPath = ensureString(state.projectPath) || projectBase;
-          const cwd = ensureString(state.cwd) || projectPath;
+          const cataloguesPath = await resolvePath(state.cataloguesPath, projectBase);
+          const projectPath = await resolvePath(state.projectPath, '.');
+          const cwd = await resolvePath(state.cwd, '.');
 
           return {
             helperRegistration,
-            effectiveRagRoot: base,
+            effectiveRagRoot: ragRoot,
             effectiveSnapshotPath: snapshotPath,
             effectiveCacheDir: cacheDir,
             effectiveCataloguesUrl: cataloguesUrl,
