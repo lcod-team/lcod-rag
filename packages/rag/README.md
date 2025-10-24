@@ -12,6 +12,7 @@ Components:
 - `lcod://rag/registry/load_manifest_records@0.1.0` — fetch catalogue manifests from disk or HTTP and return raw records.
 - `lcod://rag/registry/collect_components@0.1.0` — main flow turning `catalogues.json` into component metadata plus warnings.
 - `lcod://rag/registry/fetch_component_docs@0.1.0` — download README snippets for each component based on its source metadata.
+- `lcod://rag/registry/search_components@0.1.0` — embed a natural language query and run a Qdrant vector search to retrieve relevant component documentation.
 - `lcod://rag/registry/register_helpers@0.1.0` — register the rag workspace helper components for the current run.
 - `lcod://rag/registry/snapshot_from_components@0.1.0` — build a deterministic snapshot map from the collected components.
 - `lcod://rag/registry/diff_snapshots@0.1.0` — compare previous and current snapshots to detect additions, removals and changes.

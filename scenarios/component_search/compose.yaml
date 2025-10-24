@@ -1,0 +1,78 @@
+compose:
+  - call: lcod://tooling/script@1
+    in:
+      ragRoot: $.ragRoot
+      source: |
+        async ({ state }, { imports }) => {
+          const ensureString = (value) => (typeof value === 'string' && value.trim().length ? value.trim() : null);
+          const joinAbs = async (base, segment) => {
+            try {
+              const result = await imports.pathJoin({ base, segment });
+              return result?.path || result || segment;
+            } catch (_) {
+              const separator = base.endsWith('/') ? '' : '/';
+              return `${base}${separator}${segment}`;
+            }
+          };
+
+          const cwd = typeof process !== 'undefined' && process?.cwd ? process.cwd() : '.';
+          const defaultRoot = await joinAbs(cwd, 'packages/rag');
+          const ragRoot = ensureString(state.ragRoot) || defaultRoot;
+
+          const makeComposePath = async (segment) => await joinAbs(ragRoot, segment);
+
+          const registrations = [
+            {
+              id: 'lcod://rag/registry/register_helpers@0.1.0',
+              composePath: await makeComposePath('components/registry.register_helpers/compose.yaml')
+            },
+            {
+              id: 'lcod://rag/registry/search_components@0.1.0',
+              composePath: await makeComposePath('components/registry.search_components/compose.yaml')
+            }
+          ];
+
+          return { ragRootResolved: ragRoot, registrations };
+        }
+    imports:
+      pathJoin: lcod://axiom/path/join@1
+    out:
+      ragRootResolved: ragRootResolved
+      registrations: registrations
+
+  - call: lcod://tooling/resolver/register@1
+    in:
+      components: $.registrations
+
+  - call: lcod://rag/registry/register_helpers@0.1.0
+    in:
+      ragRoot: $.ragRootResolved
+
+  - call: lcod://rag/registry/search_components@0.1.0
+    in:
+      query: $.query
+      topK: $.topK
+      scoreThreshold: $.scoreThreshold
+      qdrantUrl: $.qdrantUrl
+      collection: $.collection
+    out:
+      matches: matches
+      matchCount: matchCount
+      warnings: warnings
+
+  - call: lcod://tooling/script@1
+    in:
+      matches: $.matches
+      matchCount: $.matchCount
+      warnings: $.warnings
+      source: |
+        async ({ state }) => {
+          const summary = {
+            matchCount: Number.isFinite(state.matchCount) ? state.matchCount : 0,
+            firstMatch: Array.isArray(state.matches) ? state.matches[0] ?? null : null,
+            warnings: Array.isArray(state.warnings) ? state.warnings : []
+          };
+          return { summary };
+        }
+    out:
+      summary: summary

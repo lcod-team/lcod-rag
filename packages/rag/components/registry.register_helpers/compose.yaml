@@ -26,6 +26,8 @@ compose:
           segment: "components/registry.snapshot_write/compose.yaml"
         - id: "lcod://rag/registry/fetch_component_docs@0.1.0"
           segment: "components/registry.fetch_component_docs/compose.yaml"
+        - id: "lcod://rag/registry/search_components@0.1.0"
+          segment: "components/registry.search_components/compose.yaml"
         - id: "lcod://rag/ingest/extract_documents@0.1.0"
           segment: "components/ingest.extract_documents/compose.yaml"
         - id: "lcod://rag/ingest/chunk_documents@0.1.0"

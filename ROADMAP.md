@@ -9,4 +9,4 @@
 
 - [ ] Automate nightly ingestion runs from nucone.local (cron/systemd)
 - [ ] Expose ingestion metrics (vector count, upsert delta) to monitoring
-- [ ] Build a component search helper (Ollama embedding + Qdrant query contract)
+- [x] Build a component search helper (Ollama embedding + Qdrant query contract) ([#5](https://github.com/lcod-team/lcod-rag/issues/5))

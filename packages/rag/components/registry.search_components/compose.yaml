@@ -1,0 +1,412 @@
+compose:
+  - call: lcod://tooling/script@1
+    in:
+      query: $.query
+      source: |
+        async ({ state }) => {
+          const warnings = [];
+          const normalize = (value) => {
+            if (typeof value !== 'string') return null;
+            const trimmed = value.trim();
+            return trimmed.length ? trimmed : null;
+          };
+          const text = normalize(state.query);
+          if (!text) {
+            warnings.push('registry.search_components: query must be a non-empty string');
+            return { normalizedQuery: null, hasQuery: false, warnings };
+          }
+          return { normalizedQuery: text, hasQuery: true, warnings };
+        }
+    out:
+      normalizedQuery: normalizedQuery
+      hasQuery: hasQuery
+      initialWarnings: warnings
+
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.initialWarnings
+    out:
+      baseWarnings: resolved
+
+  - call: lcod://flow/if@1
+    in:
+      cond: $.hasQuery
+    slots:
+      then:
+        - call: lcod://tooling/script@1
+          in:
+            query: $.normalizedQuery
+            source: |
+              async ({ state }) => {
+                const list = [];
+                if (typeof state.query === 'string' && state.query.length > 0) {
+                  list.push({
+                    text: state.query,
+                    metadata: {
+                      docKey: 'query',
+                      kind: 'natural_language_query'
+                    }
+                  });
+                }
+                return { chunks: list };
+              }
+          out:
+            queryChunks: chunks
+
+        - call: lcod://rag/ingest/embed_chunks@0.1.0
+          in:
+            chunks: $.queryChunks
+            ollamaBaseUrl: $.ollamaBaseUrl
+            embeddingModel: $.embeddingModel
+            timeoutMs: $.embeddingTimeoutMs
+            maxRetries: $.embeddingMaxRetries
+          out:
+            embedVectors: vectors
+            embedWarnings: warnings
+            embedDimension: dimension
+            hasVectors: hasVectors
+
+        - call: lcod://tooling/value/default_array@0.1.0
+          in:
+            value: $.embedWarnings
+          out:
+            branchWarnings: resolved
+
+        - call: lcod://tooling/script@1
+          in:
+            vectors: $.embedVectors
+            embedDimension: $.embedDimension
+            source: |
+              async ({ state }) => {
+                const entries = Array.isArray(state.vectors) ? state.vectors : [];
+                const first = entries.length > 0 ? entries[0] : null;
+                const vector = Array.isArray(first?.vector) ? first.vector : null;
+                const dimension = Array.isArray(vector)
+                  ? vector.length
+                  : (Number.isFinite(state.embedDimension) ? Math.trunc(state.embedDimension) : 0);
+                return {
+                  queryVector: vector,
+                  queryText: typeof first?.text === 'string' ? first.text : null,
+                  vectorPresent: Array.isArray(vector) && vector.length > 0,
+                  dimension
+                };
+              }
+          out:
+            queryVector: queryVector
+            queryText: queryText
+            vectorPresent: vectorPresent
+            effectiveDimension: dimension
+
+        - call: lcod://flow/if@1
+          in:
+            cond: $.vectorPresent
+          slots:
+            then:
+              - call: lcod://tooling/script@1
+                in:
+                  vector: $.queryVector
+                  topK: $.topK
+                  scoreThreshold: $.scoreThreshold
+                  qdrantUrl: $.qdrantUrl
+                  collection: $.collection
+                  apiKey: $.apiKey
+                  timeoutMs: $.searchTimeoutMs
+                  filter: $.filter
+                  source: |
+                    async ({ state }, api) => {
+                      const warnings = [];
+                      const normalizeNumber = (value) => {
+                        const num = Number(value);
+                        return Number.isFinite(num) ? num : null;
+                      };
+                      const normalizeString = (value) => {
+                        if (typeof value !== 'string') return null;
+                        const trimmed = value.trim();
+                        return trimmed.length ? trimmed : null;
+                      };
+
+                      if (!Array.isArray(state.vector) || !state.vector.length) {
+                        warnings.push('registry.search_components: missing embedding vector');
+                        return { matches: [], matchWarnings: warnings, matchCount: 0 };
+                      }
+
+                      const vector = [];
+                      for (const value of state.vector) {
+                        const num = normalizeNumber(value);
+                        if (num === null) {
+                          warnings.push('registry.search_components: embedding vector contains non-numeric values');
+                          return { matches: [], matchWarnings: warnings, matchCount: 0 };
+                        }
+                        vector.push(num);
+                      }
+
+                      const env = typeof process !== 'undefined' && process?.env ? process.env : {};
+                      const baseUrlRaw =
+                        normalizeString(state.qdrantUrl) ||
+                        normalizeString(env.QDRANT_URL) ||
+                        'http://localhost:6333';
+                      const collectionRaw =
+                        normalizeString(state.collection) ||
+                        normalizeString(env.QDRANT_COLLECTION) ||
+                        'lcod_docs';
+                      const apiKey = normalizeString(state.apiKey) || normalizeString(env.QDRANT_API_KEY);
+
+                      const limitEnv = normalizeNumber(env.RAG_TOP_K);
+                      const limit =
+                        Number.isFinite(state.topK) && state.topK
+                          ? Math.max(1, Math.trunc(state.topK))
+                          : (limitEnv && limitEnv > 0 ? Math.trunc(limitEnv) : 5);
+
+                      const timeout = Number.isFinite(state.timeoutMs)
+                        ? Math.max(1000, Math.trunc(state.timeoutMs))
+                        : 15000;
+
+                      const stripTrailingSlash = (value) => value.replace(/\/+$/, '');
+                      const baseUrl = stripTrailingSlash(baseUrlRaw);
+                      const collection = collectionRaw;
+
+                      const headers = {
+                        accept: 'application/json',
+                        'content-type': 'application/json'
+                      };
+                      if (apiKey) {
+                        headers['api-key'] = apiKey;
+                      }
+
+                      const body = {
+                        vector,
+                        limit,
+                        with_payload: true,
+                        with_vector: false
+                      };
+
+                      const threshold = normalizeNumber(state.scoreThreshold);
+                      if (threshold !== null) {
+                        body.score_threshold = threshold;
+                      }
+
+                      const filter = state.filter && typeof state.filter === 'object' && !Array.isArray(state.filter)
+                        ? state.filter
+                        : null;
+                      if (filter) {
+                        body.filter = filter;
+                      }
+
+                      let payload = null;
+                      try {
+                        const response = await api.call('lcod://contract/core/http/request@1', {
+                          method: 'POST',
+                          url: `${baseUrl}/collections/${encodeURIComponent(collection)}/points/search`,
+                          headers,
+                          body,
+                          bodyEncoding: 'json',
+                          timeoutMs: timeout
+                        });
+
+                        const status = Number.isFinite(response?.status) ? response.status : null;
+                        if (!status || status < 200 || status >= 300) {
+                          const bodyPreview = typeof response?.body === 'string'
+                            ? response.body.slice(0, 200)
+                            : JSON.stringify(response?.body)?.slice(0, 200);
+                          warnings.push(
+                            `registry.search_components: Qdrant search failed with status ${status ?? 'unknown'}${bodyPreview ? ` body=${bodyPreview}` : ''}`.trim()
+                          );
+                          return { matches: [], matchWarnings: warnings, matchCount: 0 };
+                        }
+
+                        payload = response?.body ?? null;
+                      } catch (error) {
+                        warnings.push(`registry.search_components: HTTP error while querying Qdrant: ${error?.message || error}`);
+                        return { matches: [], matchWarnings: warnings, matchCount: 0 };
+                      }
+
+                      if (typeof payload === 'string') {
+                        try {
+                          payload = JSON.parse(payload);
+                        } catch (error) {
+                          warnings.push(`registry.search_components: unable to decode Qdrant search response: ${error?.message || error}`);
+                          return { matches: [], matchWarnings: warnings, matchCount: 0 };
+                        }
+                      }
+
+                      const extractHits = (result) => {
+                        if (!result || typeof result !== 'object') return [];
+                        if (Array.isArray(result)) return result;
+                        if (Array.isArray(result.hits)) return result.hits;
+                        return [];
+                      };
+
+                      const hits = extractHits(payload?.result);
+                      const matches = [];
+
+                      for (const hit of hits) {
+                        if (!hit || typeof hit !== 'object') continue;
+                        const payloadObj = hit.payload && typeof hit.payload === 'object' && !Array.isArray(hit.payload)
+                          ? hit.payload
+                          : {};
+                        const ensure = (value) => (typeof value === 'string' && value.trim().length ? value.trim() : null);
+
+                        const score = normalizeNumber(hit.score);
+                        const match = {
+                          id: ensure(hit.id) || (typeof hit.id === 'number' ? String(hit.id) : null),
+                          score: score ?? 0,
+                          text: ensure(payloadObj.text) || '',
+                          componentId: ensure(payloadObj.componentId),
+                          version: ensure(payloadObj.version),
+                          docKey: ensure(payloadObj.docKey),
+                          docUrl: ensure(payloadObj.docUrl),
+                          repo: ensure(payloadObj.repo),
+                          manifest: ensure(payloadObj.manifest),
+                          composePath: ensure(payloadObj.composePath),
+                          commit: ensure(payloadObj.commit),
+                          registryId: ensure(payloadObj.registryId),
+                          priority: normalizeNumber(payloadObj.priority),
+                          payload: payloadObj
+                        };
+
+                        if (threshold !== null && score !== null && score < threshold) {
+                          continue;
+                        }
+
+                        matches.push(match);
+                      }
+
+                      return {
+                        matches,
+                        matchWarnings: warnings,
+                        matchCount: matches.length
+                      };
+                    }
+                out:
+                  matches: matches
+                  matchWarnings: matchWarnings
+                  matchCount: matchCount
+            else:
+              - call: lcod://impl/set@1
+                in:
+                  matches: []
+                  matchWarnings:
+                    - 'registry.search_components: embedding did not return a vector'
+                  matchCount: 0
+                out:
+                  matches: matches
+                  matchWarnings: matchWarnings
+                  matchCount: matchCount
+          out:
+            matches: matches
+            matchWarnings: matchWarnings
+            matchCount: matchCount
+
+        - call: lcod://tooling/value/default_array@0.1.0
+          in:
+            value: $.matchWarnings
+          out:
+            matchWarningsList: resolved
+
+        - call: lcod://tooling/array/append@0.1.0
+          in:
+            items: $.branchWarnings
+            values: $.matchWarningsList
+          out:
+            branchWarnings: items
+
+        - call: lcod://impl/set@1
+          in:
+            matches: $.matches
+            branchWarnings: $.branchWarnings
+            queryVector: $.queryVector
+            dimension: $.effectiveDimension
+            matchCount: $.matchCount
+            queryText: $.queryText
+          out:
+            matches: matches
+            branchWarnings: branchWarnings
+            queryVector: queryVector
+            dimension: dimension
+            matchCount: matchCount
+            queryText: queryText
+      else:
+        - call: lcod://impl/set@1
+          in:
+            matches: []
+            branchWarnings: []
+            queryVector: null
+            dimension: 0
+            matchCount: 0
+            queryText: null
+          out:
+            matches: matches
+            branchWarnings: branchWarnings
+            queryVector: queryVector
+            dimension: dimension
+            matchCount: matchCount
+            queryText: queryText
+    out:
+      matches: matches
+      branchWarnings: branchWarnings
+      queryVector: queryVector
+      dimension: dimension
+      matchCount: matchCount
+      queryText: queryText
+
+  - call: lcod://tooling/script@1
+    in:
+      baseWarnings: $.baseWarnings
+      branchWarnings: $.branchWarnings
+      matches: $.matches
+      matchCount: $.matchCount
+      queryVector: $.queryVector
+      dimension: $.dimension
+      queryText: $.queryText
+      source: |
+        async ({ state }) => {
+          const toArray = (value) => (Array.isArray(value) ? value : []);
+          const base = toArray(state.baseWarnings);
+          const branch = toArray(state.branchWarnings);
+          const warnings = [...base, ...branch].filter((entry) => typeof entry === 'string' && entry.trim().length > 0);
+
+          const matches = toArray(state.matches);
+          const matchCount = Number.isFinite(state.matchCount) ? Math.trunc(state.matchCount) : matches.length;
+
+          const vector = Array.isArray(state.queryVector)
+            ? state.queryVector.map((value) => Number(value)).filter((value) => Number.isFinite(value))
+            : null;
+          const dimension = Number.isFinite(state.dimension)
+            ? Math.trunc(state.dimension)
+            : (Array.isArray(vector) ? vector.length : 0);
+          const queryText = typeof state.queryText === 'string' && state.queryText.trim().length
+            ? state.queryText
+            : null;
+
+          return {
+            normalizedWarnings: warnings,
+            normalizedMatches: matches,
+            normalizedMatchCount: matchCount,
+            normalizedQueryVector: vector,
+            normalizedDimension: dimension,
+            normalizedQueryText: queryText
+          };
+        }
+    out:
+      normalizedWarnings: normalizedWarnings
+      normalizedMatches: normalizedMatches
+      normalizedMatchCount: normalizedMatchCount
+      normalizedQueryVector: normalizedQueryVector
+      normalizedDimension: normalizedDimension
+      normalizedQueryText: normalizedQueryText
+
+  - call: lcod://impl/set@1
+    in:
+      matches: $.normalizedMatches
+      warnings: $.normalizedWarnings
+      matchCount: $.normalizedMatchCount
+      queryVector: $.normalizedQueryVector
+      dimension: $.normalizedDimension
+      queryText: $.normalizedQueryText
+    out:
+      matches: matches
+      warnings: warnings
+      matchCount: matchCount
+      queryVector: queryVector
+      dimension: dimension
+      queryText: queryText
