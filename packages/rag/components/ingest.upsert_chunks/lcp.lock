@@ -1,0 +1,12 @@
+resolverVersion = "0.1.0"
+schemaVersion = "1.0"
+
+[[components]]
+dependencies = []
+id = "lcod://rag/ingest/upsert_chunks@0.1.0"
+integrity = "sha256-b4cd3352822d979787328d8b6cc187ad785455b8025b8ff2e95f99410ae79d1f"
+resolved = "lcod://rag/ingest/upsert_chunks@0.1.0"
+
+[components.source]
+path = "."
+type = "path"

@@ -1,0 +1,63 @@
+schemaVersion = "2.0"
+id = "lcod://rag/ingest/extract_documents@0.1.0"
+version = "0.1.0"
+kind = "component"
+summary = "Convert registry component metadata into raw documentation entries for ingestion."
+
+[palette]
+category = "RAG"
+icon = "mdi:file-document"
+tags = ["ingest", "documents", "registry"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "components"
+summary = "Normalised registry component entries with documentation blocks."
+required = false
+schema = """
+{
+  "type": ["array", "null"],
+  "items": { "type": "object" }
+}
+"""
+
+[[io.input]]
+name = "includeEmpty"
+summary = "Keep documentation entries even when the text is blank."
+required = false
+schema = """
+{
+  "type": ["boolean", "null"]
+}
+"""
+
+[[io.output]]
+name = "documents"
+summary = "Array of documentation records ready for chunking and embeddings."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "object" }
+}
+"""
+
+[[io.output]]
+name = "warnings"
+summary = "Warnings collected while extracting documentation."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "string" }
+}
+"""
+
+[[io.output]]
+name = "documentCount"
+summary = "Number of documentation records produced."
+schema = """
+{
+  "type": "integer"
+}
+"""

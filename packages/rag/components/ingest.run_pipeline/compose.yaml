@@ -1,0 +1,337 @@
+compose:
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }, { imports }) => {
+          const ensureString = (value) => (typeof value === 'string' && value.length ? value : null);
+          const isAbsolute = (value) => /^[a-zA-Z]:[\\/]/.test(value) || value?.startsWith('/');
+          const resolvePath = async (candidate, base) => {
+            const value = ensureString(candidate);
+            if (!value) return null;
+            if (isAbsolute(value)) return value;
+            const basePath = ensureString(base) || '.';
+            try {
+              const joined = await imports.pathJoin({ base: basePath, segment: value });
+              return joined?.path || joined || value;
+            } catch (_) {
+              return value;
+            }
+          };
+
+          const projectBase = ensureString(state.projectPath) || ensureString(state.cwd) || '.';
+          const resolvedProjectBase = await resolvePath(projectBase, process.cwd());
+          const normalizedProject = (resolvedProjectBase || process.cwd()).replace(/\\/g, '/');
+
+          let ragRootCandidate = ensureString(state.ragRoot);
+          if (!ragRootCandidate) {
+            if (normalizedProject.endsWith('/packages/rag')) {
+              ragRootCandidate = '.';
+            } else if (normalizedProject.endsWith('/packages')) {
+              ragRootCandidate = 'rag';
+            } else {
+              ragRootCandidate = 'packages/rag';
+            }
+          }
+
+          const cwd = process.cwd();
+          const projectPath = resolvedProjectBase || cwd;
+          const ragRoot = await resolvePath(ragRootCandidate, projectPath) || projectPath;
+
+          const components = [
+            { id: 'lcod://rag/registry/prepare_ingestion@0.1.0', segment: 'components/registry.prepare_ingestion/compose.yaml' },
+            { id: 'lcod://rag/registry/register_helpers@0.1.0', segment: 'components/registry.register_helpers/compose.yaml' },
+            { id: 'lcod://rag/registry/snapshot_read@0.1.0', segment: 'components/registry.snapshot_read/compose.yaml' },
+            { id: 'lcod://rag/registry/snapshot_write@0.1.0', segment: 'components/registry.snapshot_write/compose.yaml' },
+            { id: 'lcod://rag/registry/collect_components@0.1.0', segment: 'components/registry.collect_components/compose.yaml' },
+            { id: 'lcod://rag/registry/snapshot_from_components@0.1.0', segment: 'components/registry.snapshot_from_components/compose.yaml' },
+            { id: 'lcod://rag/registry/diff_snapshots@0.1.0', segment: 'components/registry.diff_snapshots/compose.yaml' },
+            { id: 'lcod://rag/registry/fetch_component_docs@0.1.0', segment: 'components/registry.fetch_component_docs/compose.yaml' },
+            { id: 'lcod://rag/ingest/extract_documents@0.1.0', segment: 'components/ingest.extract_documents/compose.yaml' },
+            { id: 'lcod://rag/ingest/chunk_documents@0.1.0', segment: 'components/ingest.chunk_documents/compose.yaml' },
+            { id: 'lcod://rag/ingest/embed_chunks@0.1.0', segment: 'components/ingest.embed_chunks/compose.yaml' },
+            { id: 'lcod://rag/ingest/ensure_collection@0.1.0', segment: 'components/ingest.ensure_collection/compose.yaml' },
+            { id: 'lcod://rag/ingest/upsert_chunks@0.1.0', segment: 'components/ingest.upsert_chunks/compose.yaml' }
+          ];
+
+          const registrations = [];
+          for (const item of components) {
+            const path = await resolvePath(item.segment, ragRoot);
+            if (!path) continue;
+            registrations.push({ id: item.id, composePath: path });
+          }
+
+          return {
+            projectPathResolved: projectPath,
+            ragRootResolved: ragRoot,
+            registrationComponents: registrations
+          };
+        }
+      input:
+        ragRoot: $.ragRoot
+        projectPath: $.projectPath
+        cwd: $.cwd
+      imports:
+        pathJoin: lcod://axiom/path/join@1
+    out:
+      projectPathResolved: projectPathResolved
+      ragRootResolved: ragRootResolved
+      registrationComponents: registrationComponents
+
+  - call: lcod://tooling/resolver/register@1
+    in:
+      components: $.registrationComponents
+    out:
+      registered: registered
+
+  - call: lcod://rag/registry/prepare_ingestion@0.1.0
+    in:
+      ragRoot: $.ragRootResolved
+      projectPath: $.projectPathResolved
+      cataloguesUrl: $.cataloguesUrl
+      cataloguesPath: $.cataloguesPath
+      cacheDir: $.cacheDir
+      specRoot: $.specRoot
+      repoRoots: $.repoRoots
+      sourceId: $.sourceId
+    out:
+      components: components
+      registryWarnings: warnings
+      componentCount: componentCount
+      diff: diff
+      snapshotPath: snapshotPath
+      cataloguesCount: cataloguesCount
+
+  - call: lcod://rag/ingest/extract_documents@0.1.0
+    in:
+      components: $.components
+    out:
+      documents: documents
+      documentWarnings: warnings
+      documentCount: documentCount
+
+  - call: lcod://rag/ingest/chunk_documents@0.1.0
+    in:
+      documents: $.documents
+      chunkSize: $.chunkSize
+      chunkOverlap: $.chunkOverlap
+    out:
+      chunks: chunks
+      chunkWarnings: warnings
+      chunkCount: chunkCount
+
+  - call: lcod://rag/ingest/embed_chunks@0.1.0
+    in:
+      chunks: $.chunks
+      ollamaBaseUrl: $.ollamaBaseUrl
+      embeddingModel: $.embeddingModel
+      timeoutMs: $.embeddingTimeoutMs
+    out:
+      vectors: vectors
+      vectorDimension: dimension
+      embedWarnings: warnings
+
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }) => {
+          const vectors = Array.isArray(state.vectors) ? state.vectors : [];
+          return {
+            vectorCount: vectors.length,
+            hasVectors: vectors.length > 0
+          };
+        }
+      input:
+        vectors: $.vectors
+    out:
+      vectorCount: vectorCount
+      hasVectors: hasVectors
+
+  - call: lcod://flow/if@1
+    in:
+      cond: $.hasVectors
+    slots:
+      then:
+        - call: lcod://rag/ingest/ensure_collection@0.1.0
+          in:
+            vectorSize: $.vectorDimension
+            collection: $.qdrantCollection
+            qdrantUrl: $.qdrantUrl
+            apiKey: $.qdrantApiKey
+            distance: $.qdrantDistance
+            recreate: $.recreateCollection
+            timeoutMs: $.qdrantTimeoutMs
+          out:
+            ensureStatus: status
+            ensureWarnings: warnings
+        - call: lcod://rag/ingest/upsert_chunks@0.1.0
+          in:
+            vectors: $.vectors
+            collection: $.qdrantCollection
+            qdrantUrl: $.qdrantUrl
+            apiKey: $.qdrantApiKey
+            batchSize: $.qdrantBatchSize
+            timeoutMs: $.qdrantTimeoutMs
+          out:
+            upsertedCount: upserted
+            upsertWarnings: warnings
+        - call: lcod://tooling/script@1
+          in:
+            ensureStatus: $.ensureStatus
+            ensureWarnings: $.ensureWarnings
+            upserted: $.upsertedCount
+            upsertWarnings: $.upsertWarnings
+            source: |
+              async ({ state }) => ({
+                ingestion: {
+                  collectionStatus: state.ensureStatus || 'unknown',
+                  ensureWarnings: Array.isArray(state.ensureWarnings) ? state.ensureWarnings : [],
+                  upserted: Number.isFinite(state.upserted) ? state.upserted : 0,
+                  upsertWarnings: Array.isArray(state.upsertWarnings) ? state.upsertWarnings : []
+                }
+              })
+          out:
+            ingestion: ingestion
+      else:
+        - call: lcod://tooling/script@1
+          in:
+            source: |
+              async () => ({
+                ingestion: {
+                  collectionStatus: 'skipped',
+                  ensureWarnings: [],
+                  upserted: 0,
+                  upsertWarnings: []
+                }
+              })
+          out:
+            ingestion: ingestion
+    out:
+      ingestion: ingestion
+
+  - call: lcod://tooling/value/default_object@0.1.0
+    in:
+      value: $.ingestion
+    out:
+      ingestionResult: resolved
+
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.registryWarnings
+    out:
+      warningsAccum: resolved
+
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.documentWarnings
+    out:
+      documentWarningsList: resolved
+
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.chunkWarnings
+    out:
+      chunkWarningsList: resolved
+
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.embedWarnings
+    out:
+      embedWarningsList: resolved
+
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.ingestionResult.ensureWarnings
+    out:
+      ensureWarningsList: resolved
+
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.ingestionResult.upsertWarnings
+    out:
+      upsertWarningsList: resolved
+
+  - call: lcod://tooling/array/append@0.1.0
+    in:
+      items: $.warningsAccum
+      values: $.documentWarningsList
+    out:
+      warningsAccum: items
+
+  - call: lcod://tooling/array/append@0.1.0
+    in:
+      items: $.warningsAccum
+      values: $.chunkWarningsList
+    out:
+      warningsAccum: items
+
+  - call: lcod://tooling/array/append@0.1.0
+    in:
+      items: $.warningsAccum
+      values: $.embedWarningsList
+    out:
+      warningsAccum: items
+
+  - call: lcod://tooling/array/append@0.1.0
+    in:
+      items: $.warningsAccum
+      values: $.ensureWarningsList
+    out:
+      warningsAccum: items
+
+  - call: lcod://tooling/array/append@0.1.0
+    in:
+      items: $.warningsAccum
+      values: $.upsertWarningsList
+    out:
+      warningsAccum: items
+
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }) => {
+          const summary = {
+            componentCount: Number.isFinite(state.componentCount) ? Math.trunc(state.componentCount) : 0,
+            documentCount: Number.isFinite(state.documentCount) ? Math.trunc(state.documentCount) : 0,
+            chunkCount: Number.isFinite(state.chunkCount) ? Math.trunc(state.chunkCount) : 0,
+            vectorCount: Number.isFinite(state.vectorCount) ? Math.trunc(state.vectorCount) : 0,
+            vectorDimension: Number.isFinite(state.vectorDimension) ? Math.trunc(state.vectorDimension) : 0,
+            upserted: Number.isFinite(state.upserted) ? Math.trunc(state.upserted) : 0,
+            collectionStatus: state.collectionStatus || 'skipped',
+            cataloguesCount: Number.isFinite(state.cataloguesCount) ? Math.trunc(state.cataloguesCount) : 0,
+            snapshotPath: state.snapshotPath || null,
+            diff: state.diff || null
+          };
+          return { summary };
+        }
+      input:
+        componentCount: $.componentCount
+        documentCount: $.documentCount
+        chunkCount: $.chunkCount
+        vectorCount: $.vectorCount
+        vectorDimension: $.vectorDimension
+        upserted: $.ingestionResult.upserted
+        collectionStatus: $.ingestionResult.collectionStatus
+        cataloguesCount: $.cataloguesCount
+        snapshotPath: $.snapshotPath
+        diff: $.diff
+    out:
+      summary: summary
+
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }) => {
+          const warnings = Array.isArray(state.warnings)
+            ? state.warnings.filter((item) => typeof item === 'string' && item.length)
+            : [];
+          return {
+            summary: state.summary,
+            warnings
+          };
+        }
+      input:
+        summary: $.summary
+        warnings: $.warningsAccum
+    out:
+      summary: summary
+      warnings: warnings

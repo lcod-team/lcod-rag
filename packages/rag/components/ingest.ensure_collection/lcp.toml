@@ -1,0 +1,104 @@
+schemaVersion = "2.0"
+id = "lcod://rag/ingest/ensure_collection@0.1.0"
+version = "0.1.0"
+kind = "component"
+summary = "Ensure a Qdrant collection exists with the expected vector size." 
+
+[palette]
+category = "RAG"
+icon = "mdi:database"
+tags = ["ingest", "qdrant", "setup"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "vectorSize"
+summary = "Expected embedding dimensionality (required when creating the collection)."
+required = true
+schema = """
+{
+  "type": "integer",
+  "minimum": 1
+}
+"""
+
+[[io.input]]
+name = "collection"
+summary = "Qdrant collection identifier."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "qdrantUrl"
+summary = "Base URL for the Qdrant HTTP API (defaults to $QDRANT_URL or http://localhost:6333)."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "apiKey"
+summary = "Optional Qdrant API key sent via the `api-key` header."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "distance"
+summary = "Distance metric (Cosine by default)."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "recreate"
+summary = "Force recreation of the collection even when it exists."
+required = false
+schema = """
+{
+  "type": ["boolean", "null"]
+}
+"""
+
+[[io.input]]
+name = "timeoutMs"
+summary = "HTTP timeout when calling Qdrant (default 10000ms)."
+required = false
+schema = """
+{
+  "type": ["integer", "null"],
+  "minimum": 1000
+}
+"""
+
+[[io.output]]
+name = "status"
+summary = "Status string: created, reused, recreated."
+schema = """
+{
+  "type": "string"
+}
+"""
+
+[[io.output]]
+name = "warnings"
+summary = "Warnings emitted during collection management."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "string" }
+}
+"""

@@ -1,0 +1,233 @@
+schemaVersion = "2.0"
+id = "lcod://rag/ingest/run_pipeline@0.1.0"
+version = "0.1.0"
+kind = "component"
+summary = "End-to-end RAG ingestion pipeline using LCOD components only." 
+
+[palette]
+category = "RAG"
+icon = "mdi:robot"
+tags = ["ingest", "rag", "pipeline"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "ragRoot"
+summary = "Base directory of the lcod-rag workspace (defaults to the compose directory)."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "projectPath"
+summary = "Path forwarded to registry.prepare_ingestion for local catalogue resolution."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "cataloguesUrl"
+summary = "Override the registry pointer URL."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "cataloguesPath"
+summary = "Local catalogue pointer path."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "cacheDir"
+summary = "Directory used to cache downloads during registry collection."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "specRoot"
+summary = "Path to a local lcod-spec checkout when manifests are resolved from disk."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "repoRoots"
+summary = "Mapping of repository URLs to local mirrors passed to the registry helpers."
+required = false
+schema = """
+{
+  "type": ["object", "null"],
+  "additionalProperties": { "type": "string" }
+}
+"""
+
+[[io.input]]
+name = "sourceId"
+summary = "Identifier for the synthetic registry source."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "chunkSize"
+summary = "Target chunk size passed to chunk_documents."
+required = false
+schema = """
+{
+  "type": ["integer", "null"]
+}
+"""
+
+[[io.input]]
+name = "chunkOverlap"
+summary = "Chunk overlap forwarded to chunk_documents."
+required = false
+schema = """
+{
+  "type": ["integer", "null"]
+}
+"""
+
+[[io.input]]
+name = "ollamaBaseUrl"
+summary = "Override for the Ollama embeddings endpoint."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "embeddingModel"
+summary = "Embedding model name for Ollama."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "embeddingTimeoutMs"
+summary = "Timeout passed to embed_chunks."
+required = false
+schema = """
+{
+  "type": ["integer", "null"]
+}
+"""
+
+[[io.input]]
+name = "recreateCollection"
+summary = "When true the Qdrant collection is recreated before uploading data."
+required = false
+schema = """
+{
+  "type": ["boolean", "null"]
+}
+"""
+
+[[io.input]]
+name = "qdrantUrl"
+summary = "Base URL for the Qdrant HTTP API."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "qdrantCollection"
+summary = "Target Qdrant collection name."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "qdrantApiKey"
+summary = "Optional API key forwarded to Qdrant requests."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "qdrantDistance"
+summary = "Distance metric for ensure_collection."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "qdrantTimeoutMs"
+summary = "Timeout applied to ensure_collection and upsert_chunks."
+required = false
+schema = """
+{
+  "type": ["integer", "null"]
+}
+"""
+
+[[io.input]]
+name = "qdrantBatchSize"
+summary = "Batch size forwarded to upsert_chunks."
+required = false
+schema = """
+{
+  "type": ["integer", "null"]
+}
+"""
+
+[[io.output]]
+name = "summary"
+summary = "Aggregated metrics about the ingestion run."
+schema = """
+{
+  "type": "object"
+}
+"""
+
+[[io.output]]
+name = "warnings"
+summary = "Combined warnings from all pipeline stages."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "string" }
+}
+"""

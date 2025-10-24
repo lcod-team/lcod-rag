@@ -1,0 +1,95 @@
+schemaVersion = "2.0"
+id = "lcod://rag/ingest/upsert_chunks@0.1.0"
+version = "0.1.0"
+kind = "component"
+summary = "Upsert embedded chunks into Qdrant." 
+
+[palette]
+category = "RAG"
+icon = "mdi:upload"
+tags = ["ingest", "qdrant", "upsert"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "vectors"
+summary = "Embedded chunk records with metadata."
+required = false
+schema = """
+{
+  "type": ["array", "null"],
+  "items": { "type": "object" }
+}
+"""
+
+[[io.input]]
+name = "collection"
+summary = "Target Qdrant collection."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "qdrantUrl"
+summary = "Base URL for the Qdrant HTTP API (defaults to $QDRANT_URL or http://localhost:6333)."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "apiKey"
+summary = "Optional Qdrant API key."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "batchSize"
+summary = "Number of points to send per HTTP call (default 32)."
+required = false
+schema = """
+{
+  "type": ["integer", "null"],
+  "minimum": 1
+}
+"""
+
+[[io.input]]
+name = "timeoutMs"
+summary = "Request timeout when pushing points (default 15000ms)."
+required = false
+schema = """
+{
+  "type": ["integer", "null"],
+  "minimum": 1000
+}
+"""
+
+[[io.output]]
+name = "upserted"
+summary = "Number of points successfully submitted."
+schema = """
+{
+  "type": "integer"
+}
+"""
+
+[[io.output]]
+name = "warnings"
+summary = "Warnings returned for failed batches."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "string" }
+}
+"""

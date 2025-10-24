@@ -11,12 +11,12 @@ The LCOD RAG stack provides a retrieval layer that indexes documentation, specs 
 |  components, …) |        | - Dify agents    |
 +--------+--------+        | - IDE copilots   |
          |                 +---------+--------+
-         | Ingestion CLI              |
+         | Ingestion Compose          |
          v                            |
-+--------+---------+         +-------v---------+
-|  rag-ingest CLI  |         |   rag-api       |
-|  (Typer / Python)|         | (FastAPI)       |
-+--------+---------+         | - /query        |
++--------------------+       | - /ingest      |
+| LCOD ingest flow   |       +-------+--------+
+| (lcod-run compose) |               |
++--------------------+               |
          | Upserts            | - /ingest      |
          v                    +-------+--------+
 +--------+---------+                 |
@@ -28,7 +28,7 @@ The LCOD RAG stack provides a retrieval layer that indexes documentation, specs 
          v
 +------------------+
 |   Ollama Server  |
-|  (nucone.local)  |
+| (LCOD infra)     |
 +------------------+
 ```
 
@@ -40,18 +40,20 @@ The LCOD RAG stack provides a retrieval layer that indexes documentation, specs 
 
 ## Components
 
-### 1. Ingestion pipeline (`app/ingest`)
+### 1. Ingestion pipeline (`lcod://rag/ingest/run_pipeline`)
 
-- Discovers documentation files based on `config/sources.yaml`.
-- Uses LangChain text splitters to create overlapping chunks (default 1 000 tokens / 200 overlap).
-- Requests embeddings from Ollama and stores vectors in Qdrant.
-- Stores metadata (repository, file path, heading) to support filtering.
+- Resolves components and documentation directly from the LCOD registry.
+- Uses the LCOD chunking helper to build overlapping text windows (default
+  1 000 characters / 200 overlap).
+- Calls the Ollama embeddings endpoint and stores vectors in Qdrant through
+  dedicated LCOD components.
+- Preserves metadata (component URI, doc key, registry source) for filtering
+  and provenance.
 
 Command example:
 
 ```bash
-python -m app.ingest.cli run --config config/sources.yaml \
-       --collection lcod_docs --recreate
+lcod-run --compose packages/rag/components/ingest.run_pipeline/compose.yaml
 ```
 
 ### 2. Retrieval API (`app/rag_api`)
@@ -70,7 +72,7 @@ python -m app.ingest.cli run --config config/sources.yaml \
 
 ## Data flow
 
-1. Operators run `app.ingest.cli` locally or on `nucone.local` (could be cron-triggered).
+1. Operators run the LCOD ingestion compose (`lcod-run --compose packages/rag/components/ingest.run_pipeline/compose.yaml`) locally or via cron on the target host.
 2. Each ingestion pass creates/updates the Qdrant collection and upserts chunks.
 3. Clients query `rag-api` with a natural language prompt. The service:
    - Queries Qdrant for similar chunks (`top_k` configurable).
@@ -85,4 +87,3 @@ python -m app.ingest.cli run --config config/sources.yaml \
 - **Source connectors**: Extend ingestion to Confluence/Notion or API specs.
 - **Multi-tenant indices**: Use Qdrant payload filters per product/scope.
 - **Tracing**: Emit events to OpenTelemetry / Jaeger for observability.
-

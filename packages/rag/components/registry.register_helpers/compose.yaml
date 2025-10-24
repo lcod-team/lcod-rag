@@ -26,6 +26,18 @@ compose:
           segment: "components/registry.snapshot_write/compose.yaml"
         - id: "lcod://rag/registry/fetch_component_docs@0.1.0"
           segment: "components/registry.fetch_component_docs/compose.yaml"
+        - id: "lcod://rag/ingest/extract_documents@0.1.0"
+          segment: "components/ingest.extract_documents/compose.yaml"
+        - id: "lcod://rag/ingest/chunk_documents@0.1.0"
+          segment: "components/ingest.chunk_documents/compose.yaml"
+        - id: "lcod://rag/ingest/embed_chunks@0.1.0"
+          segment: "components/ingest.embed_chunks/compose.yaml"
+        - id: "lcod://rag/ingest/ensure_collection@0.1.0"
+          segment: "components/ingest.ensure_collection/compose.yaml"
+        - id: "lcod://rag/ingest/upsert_chunks@0.1.0"
+          segment: "components/ingest.upsert_chunks/compose.yaml"
+        - id: "lcod://rag/ingest/run_pipeline@0.1.0"
+          segment: "components/ingest.run_pipeline/compose.yaml"
     out:
       registrations: registrations
 

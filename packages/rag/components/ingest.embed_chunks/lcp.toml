@@ -1,0 +1,96 @@
+schemaVersion = "2.0"
+id = "lcod://rag/ingest/embed_chunks@0.1.0"
+version = "0.1.0"
+kind = "component"
+summary = "Call the Ollama embeddings endpoint for each chunk and attach vector data." 
+
+[palette]
+category = "RAG"
+icon = "mdi:vector-polyline"
+tags = ["ingest", "ollama", "embeddings"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "chunks"
+summary = "Chunked records produced by chunk_documents."
+required = false
+schema = """
+{
+  "type": ["array", "null"],
+  "items": { "type": "object" }
+}
+"""
+
+[[io.input]]
+name = "ollamaBaseUrl"
+summary = "Base URL of the Ollama server (defaults to $OLLAMA_BASE_URL or http://localhost:11434)."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "embeddingModel"
+summary = "Embedding model identifier (defaults to $RAG_EMBED_MODEL or nomic-embed-text)."
+required = false
+schema = """
+{
+  "type": ["string", "null"]
+}
+"""
+
+[[io.input]]
+name = "timeoutMs"
+summary = "Per-request timeout when contacting Ollama."
+required = false
+schema = """
+{
+  "type": ["integer", "null"],
+  "minimum": 1000
+}
+"""
+
+[[io.input]]
+name = "maxRetries"
+summary = "Number of retries for transient Ollama errors (default 2)."
+required = false
+schema = """
+{
+  "type": ["integer", "null"],
+  "minimum": 0,
+  "maximum": 5
+}
+"""
+
+[[io.output]]
+name = "vectors"
+summary = "Chunk records augmented with embedding vectors."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "object" }
+}
+"""
+
+[[io.output]]
+name = "dimension"
+summary = "Embedding vector length (0 when no vectors were produced)."
+schema = """
+{
+  "type": "integer"
+}
+"""
+
+[[io.output]]
+name = "warnings"
+summary = "Warnings produced during embedding."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "string" }
+}
+"""

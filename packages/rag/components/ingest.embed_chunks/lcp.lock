@@ -1,0 +1,12 @@
+resolverVersion = "0.1.0"
+schemaVersion = "1.0"
+
+[[components]]
+dependencies = []
+id = "lcod://rag/ingest/embed_chunks@0.1.0"
+integrity = "sha256-8ca32819dba95e59cece5ab27874eb8869a2a43a9fd142dfed85aadaef310d3c"
+resolved = "lcod://rag/ingest/embed_chunks@0.1.0"
+
+[components.source]
+path = "."
+type = "path"

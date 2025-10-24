@@ -1,0 +1,101 @@
+compose:
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }) => {
+          const documents = Array.isArray(state.documents) ? state.documents : [];
+          const warnings = [];
+          const result = [];
+
+          const size = Number.isFinite(state.chunkSize)
+            ? Math.max(100, Math.trunc(state.chunkSize))
+            : 1000;
+          const overlapRaw = Number.isFinite(state.chunkOverlap)
+            ? Math.max(0, Math.trunc(state.chunkOverlap))
+            : 200;
+          const overlap = Math.min(overlapRaw, size - 1);
+
+          const ensureString = (value) => {
+            if (typeof value !== 'string') return null;
+            const trimmed = value.trim();
+            return trimmed.length ? trimmed : null;
+          };
+
+          for (const doc of documents) {
+            if (!doc || typeof doc !== 'object' || Array.isArray(doc)) {
+              continue;
+            }
+            const text = ensureString(doc.text);
+            if (!text) {
+              const label = ensureString(doc.docKey) || 'documentation';
+              warnings.push(`ingest.chunk_documents: skipping empty ${label} for ${ensureString(doc.componentId) || '(unknown component)'}`);
+              continue;
+            }
+
+            const normalized = text.replace(/\r\n/g, '\n');
+            const chunks = [];
+            let start = 0;
+            while (start < normalized.length) {
+              const end = Math.min(normalized.length, start + size);
+              let chunk = normalized.slice(start, end);
+
+              // Avoid cutting the last chunk down to zero when overlap >= size.
+              if (!chunk.length) break;
+
+              // Trim leading/trailing whitespace but keep original span for overlap computations.
+              const trimmed = chunk.trim();
+              if (trimmed.length) {
+                chunks.push(trimmed);
+              }
+
+              if (end >= normalized.length) {
+                break;
+              }
+
+              const nextStart = end - overlap;
+              start = nextStart > start ? nextStart : start + 1;
+            }
+
+            const chunkCount = chunks.length;
+            for (let index = 0; index < chunks.length; index += 1) {
+              const chunkText = chunks[index];
+              result.push({
+                text: chunkText,
+                metadata: {
+                  componentId: ensureString(doc.componentId),
+                  version: ensureString(doc.version),
+                  docKey: ensureString(doc.docKey),
+                  repo: ensureString(doc.repo),
+                  commit: ensureString(doc.commit),
+                  docUrl: ensureString(doc.docUrl),
+                  manifest: ensureString(doc.manifest),
+                  composePath: ensureString(doc.composePath),
+                  registryId: ensureString(doc.source && doc.source.registryId),
+                  priority: Number.isFinite(doc.source && doc.source.priority)
+                    ? Math.trunc(doc.source.priority)
+                    : null,
+                  chunkIndex: index,
+                  chunkCount,
+                  chunkId: `${ensureString(doc.componentId) || 'component'}::${ensureString(doc.docKey) || 'doc'}::${index}`,
+                  sourceMetadata: doc.sourceMetadata && typeof doc.sourceMetadata === 'object' && !Array.isArray(doc.sourceMetadata)
+                    ? doc.sourceMetadata
+                    : null
+                }
+              });
+            }
+          }
+
+          return {
+            chunks: result,
+            warnings,
+            chunkCount: result.length
+          };
+        }
+      input:
+        documents: $.documents
+        chunkSize: $.chunkSize
+        chunkOverlap: $.chunkOverlap
+    out:
+      chunks: chunks
+      warnings: warnings
+      chunkCount: chunkCount

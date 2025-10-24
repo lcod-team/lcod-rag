@@ -1,0 +1,136 @@
+compose:
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }, api) => {
+          const env = typeof process !== 'undefined' && process && process.env ? process.env : {};
+          const baseUrlRaw = typeof state.qdrantUrl === 'string' ? state.qdrantUrl : (env.QDRANT_URL || 'http://localhost:6333');
+          const collectionRaw = typeof state.collection === 'string' && state.collection.trim().length
+            ? state.collection
+            : (env.QDRANT_COLLECTION || 'lcod_docs');
+          const apiKey = typeof state.apiKey === 'string' ? state.apiKey : (env.QDRANT_API_KEY || null);
+          const distanceInput = typeof state.distance === 'string' ? state.distance : (env.QDRANT_DISTANCE || 'Cosine');
+          const timeout = Number.isFinite(state.timeoutMs) ? Math.max(1000, Math.trunc(state.timeoutMs)) : 10000;
+          const recreate = state.recreate === true;
+          const vectorSize = Number.isFinite(state.vectorSize) ? Math.max(1, Math.trunc(state.vectorSize)) : null;
+
+          if (!vectorSize) {
+            throw new Error('ingest.ensure_collection: vectorSize is required and must be >= 1');
+          }
+
+          const stripTrailingSlash = (value) => value.replace(/\/+$/, '');
+          const baseUrl = stripTrailingSlash(baseUrlRaw);
+          const collection = collectionRaw.trim();
+          const distance = distanceInput && distanceInput.trim().length ? distanceInput.trim() : 'Cosine';
+
+          const headers = {
+            accept: 'application/json'
+          };
+          if (apiKey) {
+            headers['api-key'] = apiKey;
+          }
+
+          const warnings = [];
+          let status = 'created';
+
+          try {
+            const infoResponse = await api.call('lcod://contract/core/http/request@1', {
+              method: 'GET',
+              url: `${baseUrl}/collections/${encodeURIComponent(collection)}`,
+              headers,
+              timeoutMs: timeout
+            });
+
+            const infoStatus = Number.isFinite(infoResponse?.status) ? infoResponse.status : null;
+            if (infoStatus && infoStatus >= 200 && infoStatus < 300 && infoResponse?.body) {
+              let payload = infoResponse.body;
+              if (typeof payload === 'string') {
+                try {
+                  payload = JSON.parse(payload);
+                } catch (err) {
+                  warnings.push(`ingest.ensure_collection: unable to parse collection metadata JSON: ${err?.message || err}`);
+                  payload = null;
+                }
+              }
+
+              let existingSize = null;
+              if (payload && typeof payload === 'object') {
+                const result = payload.result || payload;
+                if (result && typeof result === 'object') {
+                  if (Number.isFinite(result.vector_size)) {
+                    existingSize = Math.trunc(result.vector_size);
+                  } else if (result.config && result.config.params && result.config.params.vectors) {
+                    const candidate = result.config.params.vectors.size || result.config.params.vectors.vector_size;
+                    if (Number.isFinite(candidate)) {
+                      existingSize = Math.trunc(candidate);
+                    }
+                  }
+                }
+              }
+
+              if (existingSize !== null && existingSize === vectorSize && !recreate) {
+                return { status: 'reused', warnings };
+              }
+
+              if (existingSize !== null && existingSize !== vectorSize) {
+                warnings.push(`ingest.ensure_collection: existing vector size ${existingSize} differs from expected ${vectorSize}, recreating.`);
+              }
+
+              // Drop the collection when mismatch or explicit recreate.
+              const deleteResponse = await api.call('lcod://contract/core/http/request@1', {
+                method: 'DELETE',
+                url: `${baseUrl}/collections/${encodeURIComponent(collection)}`,
+                headers,
+                timeoutMs: timeout
+              });
+              const deleteStatus = Number.isFinite(deleteResponse?.status) ? deleteResponse.status : null;
+              if (!deleteStatus || deleteStatus < 200 || deleteStatus >= 300) {
+                warnings.push(`ingest.ensure_collection: delete returned status ${deleteStatus ?? 'unknown'}`);
+              }
+              status = 'recreated';
+            }
+          } catch (error) {
+            // Treat 404 as normal (collection missing). Other errors are surfaced in warnings.
+            const code = error?.cause?.code || error?.code;
+            warnings.push(`ingest.ensure_collection: failed to query collection metadata: ${error?.message || error}${code ? ` (${code})` : ''}`);
+          }
+
+          const createResponse = await api.call('lcod://contract/core/http/request@1', {
+            method: 'PUT',
+            url: `${baseUrl}/collections/${encodeURIComponent(collection)}`,
+            headers: {
+              ...headers,
+              'content-type': 'application/json'
+            },
+            body: {
+              vectors: {
+                size: vectorSize,
+                distance
+              }
+            },
+            bodyEncoding: 'json',
+            timeoutMs: timeout
+          });
+
+          const createStatus = Number.isFinite(createResponse?.status) ? createResponse.status : null;
+          if (!createStatus || createStatus < 200 || createStatus >= 300) {
+            warnings.push(`ingest.ensure_collection: create returned status ${createStatus ?? 'unknown'}`);
+          }
+
+          if (status === 'created' && recreate) {
+            status = 'recreated';
+          }
+
+          return { status, warnings };
+        }
+      input:
+        vectorSize: $.vectorSize
+        collection: $.collection
+        qdrantUrl: $.qdrantUrl
+        apiKey: $.apiKey
+        distance: $.distance
+        recreate: $.recreate
+        timeoutMs: $.timeoutMs
+    out:
+      status: status
+      warnings: warnings

@@ -1,0 +1,187 @@
+compose:
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.chunks
+    out:
+      chunksList: resolved
+
+  - call: lcod://flow/foreach@1
+    in:
+      list: $.chunksList
+    slots:
+      body:
+        - call: lcod://tooling/script@1
+          in:
+            chunk: $slot.item
+            ollamaBaseUrl: $.ollamaBaseUrl
+            embeddingModel: $.embeddingModel
+            timeoutMs: $.timeoutMs
+            maxRetries: $.maxRetries
+            source: |
+              async ({ state }, api) => {
+                const warnings = [];
+                const chunk = state.chunk && typeof state.chunk === 'object' && !Array.isArray(state.chunk)
+                  ? state.chunk
+                  : null;
+
+                if (!chunk) {
+                  warnings.push('ingest.embed_chunks: skipped invalid chunk entry');
+                  return { vector: null, warnings };
+                }
+
+                const ensureString = (value) => {
+                  if (typeof value !== 'string') return null;
+                  const trimmed = value.trim();
+                  return trimmed.length ? trimmed : null;
+                };
+
+                const text = ensureString(chunk.text);
+                if (!text) {
+                  warnings.push('ingest.embed_chunks: skipped empty chunk');
+                  return { vector: null, warnings };
+                }
+
+               const metadata = chunk.metadata && typeof chunk.metadata === 'object' && !Array.isArray(chunk.metadata)
+                 ? chunk.metadata
+                 : {};
+
+                const env = typeof process !== 'undefined' && process?.env ? process.env : {};
+                const baseUrlInput = ensureString(state.ollamaBaseUrl) || ensureString(env.OLLAMA_BASE_URL);
+                const embeddingModelInput = ensureString(state.embeddingModel) || ensureString(env.RAG_EMBED_MODEL) || ensureString(env.OLLAMA_EMBED_MODEL);
+                const stripTrailingSlash = (value) => value.replace(/\/\/+$/, '');
+                const baseUrl = stripTrailingSlash(baseUrlInput || 'http://localhost:11434');
+                const endpoint = `${baseUrl}/api/embeddings`;
+                const model = embeddingModelInput || 'nomic-embed-text';
+
+                const timeout = Number.isFinite(state.timeoutMs)
+                  ? Math.max(1000, Math.trunc(state.timeoutMs))
+                  : 60000;
+                const maxRetries = Number.isFinite(state.maxRetries)
+                  ? Math.max(0, Math.min(5, Math.trunc(state.maxRetries)))
+                  : 2;
+
+                let attempt = 0;
+                let vector = null;
+
+                while (attempt <= maxRetries && !vector) {
+                  try {
+                    const response = await api.call('lcod://contract/core/http/request@1', {
+                      method: 'POST',
+                      url: endpoint,
+                      headers: {
+                        'content-type': 'application/json',
+                        accept: 'application/json'
+                      },
+                      body: {
+                        model,
+                        prompt: text
+                      },
+                      bodyEncoding: 'json',
+                      timeoutMs: timeout
+                    });
+
+                    const status = Number.isFinite(response?.status) ? response.status : null;
+                    if (!status || status < 200 || status >= 300) {
+                      throw new Error(`Unexpected status ${status ?? 'unknown'}`);
+                    }
+
+                    let payload = response?.body;
+                    if (typeof payload === 'string') {
+                      payload = JSON.parse(payload);
+                    }
+
+                    if (payload && typeof payload === 'object') {
+                      if (Array.isArray(payload.embedding)) {
+                        vector = payload.embedding;
+                      } else if (Array.isArray(payload.data) && Array.isArray(payload.data[0]?.embedding)) {
+                        vector = payload.data[0].embedding;
+                      }
+                    }
+
+                    if (!Array.isArray(vector)) {
+                      throw new Error('Embedding response missing vector data');
+                    }
+                  } catch (error) {
+                    attempt += 1;
+                    if (attempt > maxRetries) {
+                      warnings.push(`ingest.embed_chunks: failed to embed chunk ${metadata.chunkId || '(unknown)'} after ${attempt} attempts: ${error?.message || error}`);
+                    }
+                  }
+                }
+
+                if (!Array.isArray(vector)) {
+                  return { vector: null, warnings };
+                }
+
+                return {
+                  vector: {
+                    text,
+                    vector,
+                    metadata
+                  },
+                  warnings,
+                  dimension: Array.isArray(vector) ? vector.length : 0
+                };
+              }
+          out:
+            vectorEntry: $
+    collectPath: $.vectorEntry
+    out:
+      embedEntries: results
+
+  - call: lcod://tooling/script@1
+    in:
+      entries: $.embedEntries
+      source: |
+        async ({ state }) => {
+          const entries = Array.isArray(state.entries) ? state.entries : [];
+          const vectors = [];
+          const warnings = [];
+
+          for (const entry of entries) {
+            if (entry && typeof entry === 'object') {
+              if (Array.isArray(entry.warnings)) {
+                warnings.push(...entry.warnings);
+              }
+              if (entry.vector && typeof entry.vector === 'object') {
+                vectors.push(entry.vector);
+              }
+            }
+          }
+
+          const dimension = vectors.length && Array.isArray(vectors[0]?.vector)
+            ? vectors[0].vector.length
+            : 0;
+
+          return {
+            vectors,
+            warnings,
+            vectorCount: vectors.length,
+            hasVectors: vectors.length > 0,
+            dimension
+          };
+        }
+    out:
+      vectors: vectors
+      embedWarnings: warnings
+      vectorCount: vectorCount
+      hasVectors: hasVectors
+      dimension: dimension
+
+  - call: lcod://tooling/value/default_array@0.1.0
+    in:
+      value: $.embedWarnings
+    out:
+      embedWarningsList: resolved
+
+  - call: lcod://impl/set@1
+    in:
+      vectors: $.vectors
+      dimension: $.dimension
+      warnings: $.embedWarningsList
+      hasVectors: $.hasVectors
+    out:
+      vectors: vectors
+      dimension: dimension
+      warnings: warnings
+      hasVectors: hasVectors

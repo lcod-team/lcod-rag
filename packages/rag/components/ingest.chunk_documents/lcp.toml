@@ -1,0 +1,75 @@
+schemaVersion = "2.0"
+id = "lcod://rag/ingest/chunk_documents@0.1.0"
+version = "0.1.0"
+kind = "component"
+summary = "Split raw documentation records into overlapping text chunks." 
+
+[palette]
+category = "RAG"
+icon = "mdi:text"
+tags = ["ingest", "chunking", "text"]
+
+[docs]
+readme = "README.md"
+
+[[io.input]]
+name = "documents"
+summary = "Documentation records produced by extract_documents."
+required = false
+schema = """
+{
+  "type": ["array", "null"],
+  "items": { "type": "object" }
+}
+"""
+
+[[io.input]]
+name = "chunkSize"
+summary = "Target chunk size in characters (default 1000)."
+required = false
+schema = """
+{
+  "type": ["integer", "null"],
+  "minimum": 100
+}
+"""
+
+[[io.input]]
+name = "chunkOverlap"
+summary = "Number of characters to overlap between chunks (default 200)."
+required = false
+schema = """
+{
+  "type": ["integer", "null"],
+  "minimum": 0
+}
+"""
+
+[[io.output]]
+name = "chunks"
+summary = "Chunked text entries with metadata for downstream embeddings."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "object" }
+}
+"""
+
+[[io.output]]
+name = "warnings"
+summary = "Warnings raised during chunking (e.g. empty documents)."
+schema = """
+{
+  "type": "array",
+  "items": { "type": "string" }
+}
+"""
+
+[[io.output]]
+name = "chunkCount"
+summary = "Total number of chunks produced."
+schema = """
+{
+  "type": "integer"
+}
+"""

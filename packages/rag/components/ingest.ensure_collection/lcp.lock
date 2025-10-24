@@ -1,0 +1,12 @@
+resolverVersion = "0.1.0"
+schemaVersion = "1.0"
+
+[[components]]
+dependencies = []
+id = "lcod://rag/ingest/ensure_collection@0.1.0"
+integrity = "sha256-300120f21a25a4cc6d6bdbb2106b9df03b9e6dc12cff821862e4af80dfacf768"
+resolved = "lcod://rag/ingest/ensure_collection@0.1.0"
+
+[components.source]
+path = "."
+type = "path"

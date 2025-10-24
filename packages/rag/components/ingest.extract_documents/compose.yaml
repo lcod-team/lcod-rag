@@ -1,0 +1,90 @@
+compose:
+  - call: lcod://tooling/script@1
+    in:
+      source: |
+        async ({ state }) => {
+          const components = Array.isArray(state.components) ? state.components : [];
+          const includeEmpty = state.includeEmpty === true;
+          const warnings = [];
+          const documents = [];
+
+          const ensureString = (value) => {
+            if (typeof value !== 'string') return null;
+            const trimmed = value.trim();
+            return trimmed.length ? trimmed : null;
+          };
+
+          for (const entry of components) {
+            if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+              continue;
+            }
+            const componentId = ensureString(entry.componentId) || ensureString(entry.id);
+            const version = ensureString(entry.version);
+            const manifest = ensureString(entry.manifest);
+            const composePath = ensureString(entry.composePath);
+            const registryId = ensureString(entry.registryId);
+            const priority = Number.isFinite(entry.priority) ? Math.trunc(entry.priority) : null;
+            const sourceMetadata = entry.sourceMetadata && typeof entry.sourceMetadata === 'object' && !Array.isArray(entry.sourceMetadata)
+              ? entry.sourceMetadata
+              : null;
+
+            const documentation = entry.documentation && typeof entry.documentation === 'object' && !Array.isArray(entry.documentation)
+              ? entry.documentation
+              : null;
+
+            if (!documentation) {
+              warnings.push(`ingest.extract_documents: component ${componentId || '(unknown)' } missing documentation block`);
+              continue;
+            }
+
+            const repo = ensureString(documentation.repo) || ensureString(entry.sourceRepo) || null;
+            const commit = ensureString(documentation.commit) || ensureString(sourceMetadata && sourceMetadata.commit) || null;
+
+            for (const [docKey, rawValue] of Object.entries(documentation)) {
+              if (docKey === 'repo' || docKey === 'commit') continue;
+              const key = ensureString(docKey) || 'documentation';
+              let text = null;
+              let docUrl = null;
+              if (typeof rawValue === 'string') {
+                text = ensureString(rawValue);
+              } else if (rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+                text = ensureString(rawValue.content) || ensureString(rawValue.text) || ensureString(rawValue.body);
+                docUrl = ensureString(rawValue.url);
+              }
+
+              if (!includeEmpty && (!text || text.length === 0)) {
+                continue;
+              }
+
+              documents.push({
+                componentId: componentId || null,
+                version: version || null,
+                docKey: key,
+                text: text || '',
+                repo,
+                commit,
+                docUrl,
+                manifest,
+                composePath,
+                source: {
+                  registryId: registryId || null,
+                  priority
+                },
+                sourceMetadata
+              });
+            }
+          }
+
+          return {
+            documents,
+            warnings,
+            documentCount: documents.length
+          };
+        }
+      input:
+        components: $.components
+        includeEmpty: $.includeEmpty
+    out:
+      documents: documents
+      warnings: warnings
+      documentCount: documentCount

@@ -8,7 +8,7 @@ compose:
   - call: lcod://tooling/script@1
     in:
       source: |
-        async ({ state }, { ctx }) => {
+        async ({ state }, api) => {
           const warnings = [];
           const component = state.component && typeof state.component === 'object' && !Array.isArray(state.component)
             ? { ...state.component }
@@ -67,7 +67,7 @@ compose:
           for (const candidate of candidates) {
             const url = rawBase + candidate.path;
             try {
-              const response = await ctx.call('lcod://core/http/request@1', {
+              const response = await api.call('lcod://contract/core/http/request@1', {
                 method: 'GET',
                 url,
                 headers: { accept: 'text/plain' }

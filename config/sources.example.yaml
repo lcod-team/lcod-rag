@@ -32,5 +32,5 @@ repositories:
       - docs/**/*.md
 
 notes:
-  - Customize `path` entries when deploying on `nucone.local` (typically `/home/nicolas/git/<repo>`).
+  - Customize `path` entries to match the repository layout on your deployment host.
   - Glob patterns follow the `pathspec` syntax used by `pathlib.Path.glob`.
