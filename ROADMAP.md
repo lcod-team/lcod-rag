@@ -9,3 +9,4 @@
 
 - [ ] Automate nightly ingestion runs from nucone.local (cron/systemd)
 - [ ] Expose ingestion metrics (vector count, upsert delta) to monitoring
+- [ ] Build a component search helper (Ollama embedding + Qdrant query contract)
